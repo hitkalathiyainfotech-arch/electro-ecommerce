@@ -7,7 +7,8 @@ const addressSchema = new mongoose.Schema(
     city: { type: String, default: null },
     state: { type: String, default: null },
     pincode: { type: String, default: null },
-    saveAs: { type: String, enum: ["Home", "Office", "Other"], default: "Home" }
+    saveAs: { type: String, enum: ["Home", "Office", "Other"], default: "Home" },
+    mapURL: { type: String, default: null }
   },
   { timestamps: true }
 );

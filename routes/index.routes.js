@@ -1,5 +1,5 @@
 import express from 'express';
-import { createUser, forgotPassword, getAllCountry, resetPassword, selectCountry, socialLogin, userLogin, verifyOtp } from '../controllers/user.controller.js';
+import { addNewAddress, createUser, forgotPassword, getAllCountry, resetPassword, selectCountry, socialLogin, userLogin, verifyOtp } from '../controllers/user.controller.js';
 import { UserAuth } from '../middleware/auth.middleware.js';
 
 const indexRoutes = express.Router();
@@ -15,5 +15,7 @@ indexRoutes.post("/resetPassword", resetPassword)
 
 indexRoutes.get("/getAllCountry", getAllCountry);
 indexRoutes.get("/selectCountry/:country", UserAuth, selectCountry);
+
+indexRoutes.post("/addNewAddress", UserAuth, addNewAddress);
 
 export default indexRoutes;
