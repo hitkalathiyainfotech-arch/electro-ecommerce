@@ -3,6 +3,7 @@ import 'dotenv/config';
 import cors from 'cors';
 import connectDb from './db/connectDb.js';
 import errorHandler from './middleware/error.handler.js';
+import indexRoutes from './routes/index.routes.js';
 
 const PORT = process.env.PORT || 9000;
 const DB_URL = process.env.DB_URL;
@@ -17,6 +18,7 @@ app.get("/", async (req, res) => {
   res.status(200).send("<h1>electro-ecommerce API working!</h1>")
 })
 
+app.use("/api", indexRoutes)
 app.use(errorHandler)
 
 app.listen(PORT, () => {

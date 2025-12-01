@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    isSocialLogin: {
+      type: Boolean,
+      default: null
+    },
     otp: {
       type: Number,
       default: null
@@ -55,5 +59,6 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const userModel = mongoose.model("user", userSchema);
-export default userModel;
+const userModel = mongoose.models.user || mongoose.model("user", userSchema);
+export default userModel
+
