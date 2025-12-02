@@ -680,3 +680,15 @@ export const selectUserAddress = async (req, res) => {
     return sendErrorResponse(res, 'error while select user address', error)
   }
 }
+
+export const getUserProfile = async (req, res) => {
+  try {
+    const { _id: id } = req.user;
+    const user = await userModel.findOne({ _id: id })
+
+    return sendSuccessResponse(res, `${user.fullName} profile Featched SuccessFully`, user);
+  } catch (error) {
+    console.log("Error while get User Profile : " + error.message);
+    return sendErrorResponse(res, 500, "Error while Get User Profile " + error.message);
+  }
+}
