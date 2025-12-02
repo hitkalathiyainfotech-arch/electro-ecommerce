@@ -4,7 +4,7 @@ import userModel from "../models/user.model.js";
 import { sendErrorResponse, sendForbiddenResponse, sendNotFoundResponse, sendUnauthorizedResponse } from "../utils/response.utils.js";
 import sellerModel from "../models/seller.model.js";
 
-const JWT_SECRET = process.env.JWT_SCERET;
+const JWT_SCERET = process.env.JWT_SCERET;
 
 export const UserAuth = async (req, res, next) => {
   try {
@@ -19,7 +19,7 @@ export const UserAuth = async (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SCERET);
 
     const user = await userModel.findById(decoded._id);
     if (!user) {
@@ -42,7 +42,7 @@ export const UserAuth = async (req, res, next) => {
 
 export const sellerAndAdminAuth = async (req, res, next) => {
     try {
-        if (!process.env.JWT_SECRET) {
+        if (!process.env.JWT_SCERET) {
             return sendErrorResponse(res, 500, 'Server configuration error');
         }
 
@@ -53,7 +53,7 @@ export const sellerAndAdminAuth = async (req, res, next) => {
         }
 
         try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            const decoded = jwt.verify(token, process.env.JWT_SCERET);
 
             const seller = await sellerModel.findById(decoded._id || decoded.id);
             if (!seller) {
@@ -75,12 +75,13 @@ export const sellerAndAdminAuth = async (req, res, next) => {
         return sendErrorResponse(res, 500, error.message);
     }
 };
+
 export const adminAuth = async (req, res, next) => {
     try {
         const token = req.header("Authorization")?.replace("Bearer ", "");
         if (!token) return sendUnauthorizedResponse(res, "Access denied. No token provided.");
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SCERET);
 
         if (decoded.role !== "admin") {
             return sendForbiddenResponse(res, "Access denied. Admin privileges required.");
@@ -103,7 +104,7 @@ export const sellerAuth = async (req, res, next) => {
         const token = req.header("Authorization")?.replace("Bearer ", "");
         if (!token) return sendUnauthorizedResponse(res, "Access denied. No token provided.");
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SCERET);
 
         if (decoded.role !== "seller") {
             return sendForbiddenResponse(res, "Access denied. Seller privileges required.");

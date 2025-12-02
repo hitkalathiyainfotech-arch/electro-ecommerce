@@ -214,6 +214,47 @@ export const socialLogin = async (req, res) => {
   }
 };
 
+export const getAllnewUser = async (req, res) => {
+  try {
+    const userData = await userModel.find({})
+
+    if (!userData || userData.length == 0) {
+      return sendNotFoundResponse(res, "User not found!!!!")
+    }
+
+    return sendSuccessResponse(res, "User fetched Successfully...", userData)
+
+  } catch (error) {
+    console.error("Data fetch Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error Fetching new user Data",
+      error: error.message
+    });
+  }
+}
+
+export const getUser = async (req, res) => {
+  try {
+    const { id } = req.user
+
+    const checkUser = await userModel.findById(id).select("-password -tokens");
+    if (!checkUser) {
+      return sendNotFoundResponse(res, "User not found")
+    }
+
+    return sendSuccessResponse(res, "User fetched successfully...", checkUser)
+
+  } catch (error) {
+    console.error("Data fetch Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error Fetching new user Data",
+      error: error.message
+    });
+  }
+}
+
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;

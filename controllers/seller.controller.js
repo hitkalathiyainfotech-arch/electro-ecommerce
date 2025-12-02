@@ -3,17 +3,13 @@ import mongoose from "mongoose";
 import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendResponse, sendSuccessResponse } from '../utils/response.utils.js';
 import sellerModel from "../models/seller.model.js";
 import bcrypt from "bcryptjs";
-import twilio from "twilio";
 import jwt from 'jsonwebtoken';
 import transporter from '../utils/Email.config.js'
-import validateGSTIN from '../utils/gst.verify.config.js'
-import axios from 'axios';
 import { ThrowError } from '../utils/Error.utils.js';
-// import { uploadFile } from '../middleware/imageupload.js';
+import { upload } from '../helper/imageUplode.js';
 
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const saltRounds = 10;
-const JWT_SECRET = process.env.JWT_SECRET
+const JWT_SCERET = process.env.JWT_SCERET
 const otpMap = new Map();
 
 export const createAdminController = async (req, res) => {
@@ -58,7 +54,7 @@ export const createAdminController = async (req, res) => {
       verified: true
     });
 
-    const token = jwt.sign(newAdmin.toJSON(), JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign(newAdmin.toJSON(), JWT_SCERET, { expiresIn: "7d" });
 
     return res.status(201).json({
       success: true,
@@ -125,39 +121,19 @@ export const newSellerController = async (req, res) => {
       role: "seller"
     });
 
-    try {
-      const verification = await client.verify.v2
-        .services(process.env.TWILIO_VERIFY_SID)
-        .verifications.create({
-          to: `+91${mobileNo}`,
-          channel: "sms",
-        });
+    const token = jwt.sign(newSeller.toJSON(), JWT_SCERET, { expiresIn: "7d" });
 
-      return res.status(201).json({
-        success: true,
-        message: "Seller registered successfully & OTP sent!",
-        verificationSid: verification.sid,
-        seller: {
-          id: newSeller._id,
-          mobileNo: newSeller.mobileNo,
-          email: newSeller.email,
-          avatar: newSeller.avatar,
-          role: newSeller.role
-        },
-      });
-    } catch (twilioError) {
-      console.error("Twilio OTP Error:", twilioError.message);
-      return res.status(201).json({
-        success: true,
-        message: "Seller registered successfully but OTP sending failed.",
-        seller: {
-          id: newSeller._id,
-          mobileNo: newSeller.mobileNo,
-          email: newSeller.email,
-          role: newSeller.role
-        },
-      });
-    }
+    return res.status(201).json({
+      success: true,
+      message: "Seller registered successfully...",
+      seller: {
+        id: newSeller._id,
+        mobileNo: newSeller.mobileNo,
+        email: newSeller.email,
+        role: newSeller.role
+      },
+      token: token
+    });
   } catch (error) {
     console.error("Registration Error:", error.message);
     return res.status(500).json({
@@ -332,133 +308,6 @@ export const sellerPasswordChangeController = async (req, res) => {
   }
 }
 
-export const verifySellerMobileOtpController = async (req, res) => {
-  const COMMON_OTP = "000000";
-
-  try {
-    const { mobileNo, otp } = req.body;
-
-    if (!mobileNo && !otp) {
-      return res.status(400).json({
-        success: false,
-        message: "Mobile number & OTP are required! to request"
-      });
-    }
-
-    const seller = await sellerModel.findOne({ mobileNo: mobileNo });
-    if (!seller) {
-      return sendNotFoundResponse(res, "Seller not found!");
-    }
-
-    if (seller.role === "admin") {
-      const payload = {
-        id: seller._id,
-        name: seller.businessName || seller.email,
-        email: seller.email,
-        mobileNo: seller.mobileNo,
-        isSeller: true,
-        role: seller.role
-      };
-
-      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
-
-      return res.status(200).json({
-        success: true,
-        message: "Admin verified successfully, login successful",
-        seller: {
-          id: seller._id,
-          email: seller.email,
-          role: seller.role,
-          businessName: seller.businessName
-        },
-        token: token
-      });
-    }
-
-    try {
-      const verificationCheck = await client.verify.v2
-        .services(process.env.TWILIO_VERIFY_SID)
-        .verificationChecks.create({
-          to: `+91${mobileNo}`,
-          code: otp
-        });
-
-      console.log("Twilio Verification Status:", verificationCheck.status);
-
-      if (verificationCheck.status === "approved") {
-        seller.verified = true;
-        await seller.save();
-
-        const payload = {
-          id: seller._id,
-          name: seller.businessName || seller.email,
-          email: seller.email,
-          mobileNo: seller.mobileNo,
-          isSeller: true,
-          role: seller.role
-        };
-
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
-
-        return res.status(200).json({
-          success: true,
-          message: "Seller verified successfully, login successful",
-          seller: {
-            id: seller._id,
-            email: seller.email,
-            role: seller.role,
-            businessName: seller.businessName
-          },
-          token: token
-        });
-      }
-    } catch (twilioError) {
-      console.warn("Twilio Verification Failed:", twilioError.message);
-    }
-
-    if (otp === COMMON_OTP) {
-      seller.verified = true;
-      await seller.save();
-
-      const payload = {
-        id: seller._id,
-        name: seller.businessName || seller.email,
-        email: seller.email,
-        mobileNo: seller.mobileNo,
-        isSeller: true,
-        role: seller.role
-      };
-
-      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
-
-      return res.status(200).json({
-        success: true,
-        message: "Seller verified successfully (via COMMON_OTP), login successful",
-        seller: {
-          id: seller._id,
-          email: seller.email,
-          role: seller.role,
-          businessName: seller.businessName
-        },
-        token: token
-      });
-    }
-
-    return res.status(400).json({
-      success: false,
-      message: "Invalid OTP"
-    });
-
-  } catch (error) {
-    console.error("OTP Verification Error:", error.message);
-    return res.status(500).json({
-      success: false,
-      message: "Error while verifying OTP",
-      error: error.message
-    });
-  }
-}
-
 export const sellerLoginController = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -494,7 +343,7 @@ export const sellerLoginController = async (req, res) => {
       role: seller.role
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign(payload, JWT_SCERET, { expiresIn: "7d" });
 
     let message = "";
     if (seller.role === "admin") {
