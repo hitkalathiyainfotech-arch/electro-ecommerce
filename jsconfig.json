@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "checkJs": false
+  },
+  "include": ["types/global.js", "**/*.js"]
+}

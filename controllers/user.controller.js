@@ -7,6 +7,11 @@ import transporter from '../config/email.config.js';
 import axios from "axios";
 import mongoose from 'mongoose';
 
+/**
+ * @param {AuthRequest} req
+ * @param {import('express').Response} res
+ */
+
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_SCERET;
 
@@ -505,3 +510,71 @@ export const addNewAddress = async (req, res) => {
     });
   }
 };
+
+/**
+ * @typedef {Object} AuthUser
+ * @property {string} _id
+ * @property {string} fullName
+ * @property {string} email
+ * @property {string} phone
+ */
+
+/**
+ * @typedef {import('express').Request & { user?: AuthUser }} AuthRequest
+ */
+
+/**
+ * @param {AuthRequest} req
+ * @param {import('express').Response} res
+ */
+export const updateUserAddress = async (req, res) => {
+  try {
+    const addressId = req.params.id;
+    const updateData = req.body;
+
+    let mapURL = null;
+    if (updateData.long && updateData.lati) {
+      mapURL = `https://www.google.com/maps?q=${updateData.lati},${updateData.long}`;
+    }
+
+    const updatedUser = await userModel.findOneAndUpdate(
+      {
+        $and: {
+          _id: req.user._id
+        }
+      },
+      {
+        $set: {
+          "address.$.houseDetails": updateData.houseDetails,
+          "address.$.landmark": updateData.landmark,
+          "address.$.city": updateData.city,
+          "address.$.state": updateData.state,
+          "address.$.pincode": updateData.pincode,
+          "address.$.saveAs": updateData.saveAs,
+          "address.$.mapURL": mapURL
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Address updated successfully",
+      data: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error while updating address",
+      error: error.message
+    });
+  }
+};
+
