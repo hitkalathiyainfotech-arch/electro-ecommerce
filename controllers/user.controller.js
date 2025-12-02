@@ -516,7 +516,6 @@ export const addNewAddress = async (req, res) => {
  * @property {string} _id
  * @property {string} fullName
  * @property {string} email
- * @property {string} phone
  */
 
 /**
@@ -537,23 +536,18 @@ export const updateUserAddress = async (req, res) => {
       mapURL = `https://www.google.com/maps?q=${updateData.lati},${updateData.long}`;
     }
 
+    const setData = {};
+    if (updateData.houseDetails) setData["address.$.houseDetails"] = updateData.houseDetails;
+    if (updateData.landmark) setData["address.$.landmark"] = updateData.landmark;
+    if (updateData.city) setData["address.$.city"] = updateData.city;
+    if (updateData.state) setData["address.$.state"] = updateData.state;
+    if (updateData.pincode) setData["address.$.pincode"] = updateData.pincode;
+    if (updateData.saveAs) setData["address.$.saveAs"] = updateData.saveAs;
+    if (mapURL) setData["address.$.mapURL"] = mapURL;
+
     const updatedUser = await userModel.findOneAndUpdate(
-      {
-        $and: {
-          _id: req.user._id
-        }
-      },
-      {
-        $set: {
-          "address.$.houseDetails": updateData.houseDetails,
-          "address.$.landmark": updateData.landmark,
-          "address.$.city": updateData.city,
-          "address.$.state": updateData.state,
-          "address.$.pincode": updateData.pincode,
-          "address.$.saveAs": updateData.saveAs,
-          "address.$.mapURL": mapURL
-        }
-      },
+      { _id: req.user._id, "address._id": addressId },
+      { $set: setData },
       { new: true }
     );
 
@@ -578,3 +572,111 @@ export const updateUserAddress = async (req, res) => {
   }
 };
 
+export const getAllUserAddress = async (req, res) => {
+  try {
+    const { _id } = req.user
+    if (!mongoose.Types.ObjectId.isValid(_id)) {
+      return sendBadRequestResponse(res, "_id somthing went wrong");
+    }
+
+    const address = await userModel.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(_id) } },
+      {
+        $project: {
+          address: { $sortArray: { input: "$address", sortBy: { updatedAt: -1 } } }
+        }
+      }
+    ]);
+
+
+    if (!address || address.length > 0) {
+      return sendSuccessResponse(res, "Address Not Found", address)
+    }
+
+    return sendSuccessResponse(res, `user Address Featched SuccessFully`, address)
+
+  } catch (error) {
+    console.log("Error while getAllUserAddress" + error.message)
+    return sendErrorResponse(res, 500, "Error while getAllUserAddress", error);
+  }
+}
+
+export const getUserAddressById = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const addressId = req.params.id;
+
+    const user = await userModel.findOne(
+      { _id: userId, "address._id": addressId },
+      { "address.$": 1 }
+    );
+
+    if (!user || !user.address.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found"
+      });
+    }
+
+    return sendSuccessResponse(res, "User address featched Successful By id", user.address[0])
+  } catch (error) {
+    console.log("Error while GetUserAddressById: " + error.message);
+    return sendErrorResponse(res, 500, "Error while fetching address", error)
+  }
+};
+
+export const deleteUserAddress = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const addressId = req.params.id;
+
+    const user = await userModel.findByIdAndUpdate(
+      { _id: userId },
+      { $pull: { address: { _id: addressId } } },
+      { new: true }
+    );
+
+    if (!user || !user.address.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found"
+      });
+    }
+
+    return sendSuccessResponse(res, "User address deleted Successful By id", user.address[0])
+  } catch (error) {
+    console.log("Error while delete User Address: " + error.message);
+    return sendErrorResponse(res, 500, "Error while delete address", error)
+  }
+}
+
+export const selectUserAddress = async (req, res) => {
+  try {
+    const { addressId } = req.body;
+    const { _id } = req.user;
+
+    if (!mongoose.Types.ObjectId.isValid(_id) && !mongoose.Types.ObjectId.isValid(addressId)) {
+      return sendBadRequestResponse(res, "addressId & userId something went wrong")
+    }
+
+    const user = await userModel.findOne(
+      { _id: _id, "address._id": addressId },
+      { "address.$": 1 }
+    );
+
+    if (!user || !user.address.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found"
+      });
+    }
+
+    user.selectedAddress = addressId;
+    await user.save();
+
+    return sendSuccessResponse(res, "address selected successfully", user);
+  } catch (error) {
+    console.log("error while select User Address" + error.message)
+    return sendErrorResponse(res, 'error while select user address', error)
+  }
+}

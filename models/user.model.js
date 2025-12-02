@@ -54,7 +54,8 @@ const userSchema = new mongoose.Schema(
     },
     address: [addressSchema],
     selectedAddress: {
-      type: mongoose.Schema.Types.ObjectId
+      type: mongoose.Schema.Types.ObjectId,
+      default: null
     }
   },
   { timestamps: true }
