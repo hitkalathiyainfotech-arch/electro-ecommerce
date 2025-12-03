@@ -1,5 +1,5 @@
 import brandModel from "../models/brand.model.js";
-import { sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js";
+import { sendBadRequestResponse, sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js";
 import { uploadToS3 } from "../utils/s3Service.js";
 
 export const createBrand = async (req, res) => {
@@ -147,5 +147,35 @@ export const updateBrandById = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const searchBrand = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || q.trim() === "") {
+      return sendBadRequestResponse(res, "Search query (q) is required");
+    }
+
+    const searchQuery = q.trim();
+
+    const result = await brandModel.find({
+      brandName: { $regex: searchQuery, $options: "i" }
+    })
+      .sort({ createdAt: -1 });
+
+    const total = await brandModel.countDocuments({
+      brandName: { $regex: searchQuery, $options: "i" }
+    });
+
+    return sendSuccessResponse(res, "Search result fetched successfully", {
+      total,
+      result
+    });
+
+  } catch (error) {
+    console.error("Error while searching brand:", error.message);
+    return sendErrorResponse(res, 500, "Error while searching brand", error.message);
   }
 };
