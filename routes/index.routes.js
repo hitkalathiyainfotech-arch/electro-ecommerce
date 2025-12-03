@@ -6,7 +6,7 @@ import { sendResponse, sendSuccessResponse } from '../utils/response.utils.js';
 import { deleteFromS3, deleteManyFromS3, listBucketObjects, updateS3, uploadToS3 } from '../utils/s3Service.js';
 import { upload } from '../helper/imageUplode.js';
 import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
-import { createBrand, deleteBrand, getAllBrands, getBrandsById, updateBrandById } from '../controllers/brand.controller.js';
+import { createBrand, deleteBrand, getAllBrands, getBrandsById, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -64,6 +64,8 @@ indexRoutes.get("/getAllBarnds", getAllBrands)
 indexRoutes.get("/getBrandsById/:id", getBrandsById)
 indexRoutes.put("/updateBrandById/:id", sellerAndAdminAuth, upload.single("brandImage"), updateBrandById)
 indexRoutes.delete("/deleteBrand/:id", sellerAndAdminAuth, deleteBrand)
+indexRoutes.get("/searchBrand", searchBrand)
+
 
 
 
