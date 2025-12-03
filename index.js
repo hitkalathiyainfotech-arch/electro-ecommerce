@@ -4,6 +4,7 @@ import cors from 'cors';
 import connectDb from './db/connectDb.js';
 import errorHandler from './middleware/error.handler.js';
 import indexRoutes from './routes/index.routes.js';
+import log from 'morgan'
 
 const PORT = process.env.PORT || 9000;
 const DB_URL = process.env.DB_URL;
@@ -11,6 +12,7 @@ const DB_URL = process.env.DB_URL;
 const app = express();
 app.use(express.json());
 app.use(cors())
+app.use(log("dev"))
 connectDb(DB_URL);
 
 
