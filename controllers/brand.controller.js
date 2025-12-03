@@ -76,6 +76,18 @@ export const getAllBrands = async (req, res) => {
   }
 }
 
+export const getSellerBrands = async (req, res) => {
+  try {
+    const { _id } = req.user;
+    const brand = await brandModel.find({ createdBy: _id }).populate("createdBy","firstName email avatar role");
+
+    return sendSuccessResponse(res, "Get Seller Brands successfully", brand);
+  } catch (error) {
+    console.log("Error while get seller brand by id" + error.message);
+    return sendErrorResponse(res, 500, "Error while get seller brand By Id", error)
+  }
+}
+
 export const getBrandsById = async (req, res) => {
   try {
     const { id } = req.params;
