@@ -6,7 +6,7 @@ import { sendResponse, sendSuccessResponse } from '../utils/response.utils.js';
 import { deleteFromS3, deleteManyFromS3, listBucketObjects, updateS3, uploadToS3 } from '../utils/s3Service.js';
 import { upload } from '../helper/imageUplode.js';
 import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
-import { createBrand, getAllBrands, getBrandsById, updateBrandById } from '../controllers/brand.controller.js';
+import { createBrand, deleteBrand, getAllBrands, getBrandsById, updateBrandById } from '../controllers/brand.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -47,7 +47,7 @@ indexRoutes.post("/seller/pickup/address", sellerAuth, sellerPickUpAddressSetCon
 indexRoutes.get("/getAllnewUser", getAllnewUser)
 indexRoutes.get("/getUser", UserAuth, getUser)
 indexRoutes.get("/getAllSeller", adminAuth, getAllSeller)
-indexRoutes.get("/getSeller", sellerAuth, getSeller)
+indexRoutes.get("/getSeller", sellerAndAdminAuth, getSeller)
 
 
 //category
@@ -62,8 +62,8 @@ indexRoutes.get("/searchCategory", searchCategory)
 indexRoutes.post("/createBrand", sellerAndAdminAuth, upload.single("brandImage"), createBrand)
 indexRoutes.get("/getAllBarnds", getAllBrands)
 indexRoutes.get("/getBrandsById/:id", getBrandsById)
-indexRoutes.put("/updateBrandById/:id",upload.single, updateBrandById)
-
+indexRoutes.put("/updateBrandById/:id", sellerAndAdminAuth, upload.single("brandImage"), updateBrandById)
+indexRoutes.delete("/deleteBrand/:id", sellerAndAdminAuth, deleteBrand)
 
 
 

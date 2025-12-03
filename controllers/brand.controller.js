@@ -1,6 +1,7 @@
+import mongoose from "mongoose";
 import brandModel from "../models/brand.model.js";
-import { sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js";
-import { uploadToS3 } from "../utils/s3Service.js";
+import { sendErrorResponse, sendForbiddenResponse, sendSuccessResponse } from "../utils/response.utils.js";
+import { deleteFromS3, uploadToS3 } from "../utils/s3Service.js";
 
 export const createBrand = async (req, res) => {
   try {
@@ -33,6 +34,12 @@ export const createBrand = async (req, res) => {
       categories: categories ? JSON.parse(categories) : [],
       createdBy
     });
+
+    await sellerModel.findByIdAndUpdate(
+      createdBy,
+      { $push: { brandId: brand._id } },
+      { new: true }
+    );
 
     return res.status(201).json({
       success: true,
@@ -109,6 +116,10 @@ export const updateBrandById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Brand not found" });
     }
 
+    if (req.user.role !== "admin" && String(brand.createdBy) !== String(updatedBy)) {
+      return sendForbiddenResponse(res, "You are not authorized to update this brand");
+    }
+
     if (brandName && brandName !== brand.brandName) {
       const exists = await brandModel.findOne({ brandName, _id: { $ne: id } });
       if (exists) {
@@ -120,9 +131,9 @@ export const updateBrandById = async (req, res) => {
     if (req.file) {
       if (brand.brandImage) {
         const key = String(brand.brandImage).split(".amazonaws.com/")[1];
-        if (key) await deleteS3File(key);
+        if (key) await deleteFromS3(key);
       }
-      const img = await uploadToS3(req.file, "brands");
+      const img = await uploadToS3(req.file);
       brand.brandImage = img;
     }
 
@@ -147,5 +158,32 @@ export const updateBrandById = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const  deleteBrand = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return sendErrorResponse(res, 400, "Invalid brand ID");
+    }
+
+    const brand = await brandModel.findById(id);
+    if (!brand) {
+      return sendErrorResponse(res, 404, "Brand not found");
+    }
+
+    if (userRole !== "admin" && String(brand.createdBy) !== String(userId)) {
+      return sendForbiddenResponse(res, "You are not authorized to delete this brand");
+    }
+
+    await brandModel.findByIdAndDelete(id);
+
+    return sendSuccessResponse(res, "Brand deleted successfully", brand);
+  } catch (error) {
+    return sendErrorResponse(res, 500, "Error while deleting brand", error);
   }
 };
