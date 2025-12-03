@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import transporter from '../utils/Email.config.js'
 import { ThrowError } from '../utils/Error.utils.js';
 import { upload } from '../helper/imageUplode.js';
+import { updateS3, uploadToS3 } from '../utils/s3Service.js';
 
 const saltRounds = 10;
 const JWT_SCERET = process.env.JWT_SCERET
@@ -14,20 +15,12 @@ const otpMap = new Map();
 
 export const createAdminController = async (req, res) => {
   try {
-    const { mobileNo, email, password } = req.body;
+    const { fullName, mobileNo, email, password } = req.body;
 
-    if (!mobileNo || !email || !password) {
+    if (!mobileNo || !email || !password || !fullName) {
       return res.status(400).json({
         success: false,
-        message: "mobileNo, email & password are required!"
-      });
-    }
-
-    const existingAdmin = await sellerModel.findOne({ role: "admin" });
-    if (existingAdmin) {
-      return res.status(409).json({
-        success: false,
-        message: "Admin already exists!"
+        message: "mobileNo, email & password fullName are required!"
       });
     }
 
@@ -46,6 +39,7 @@ export const createAdminController = async (req, res) => {
     const profileAvatar = Ravatar(email) || "";
 
     const newAdmin = await sellerModel.create({
+      firstName: fullName,
       email,
       mobileNo,
       avatar: profileAvatar,
@@ -80,12 +74,12 @@ export const createAdminController = async (req, res) => {
 
 export const newSellerController = async (req, res) => {
   try {
-    const { mobileNo, email, password } = req.body;
+    const { fullName, mobileNo, email, password } = req.body;
 
-    if (!mobileNo || !email || !password) {
+    if (!mobileNo || !email || !password || !fullName) {
       return res.status(400).json({
         success: false,
-        message: "mobileNo, email & password are required!"
+        message: "mobileNo, email & password fullName are required!"
       });
     }
 
@@ -114,6 +108,7 @@ export const newSellerController = async (req, res) => {
     const profileAvatar = Ravatar(email) || "";
 
     const newSeller = await sellerModel.create({
+      firstName: fullName,
       email,
       mobileNo,
       avatar: profileAvatar,
@@ -203,71 +198,46 @@ export const getSeller = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { firstName, lastName, email, mobileNo } = req.body;
+    const userId = req.user?._id;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return sendBadRequestResponse(res, "Invalid User ID!");
     }
 
-    const user = await sellerModel.findById(userId);
-    if (!user) {
-      return sendNotFoundResponse(res, "User not found...");
+    const seller = await sellerModel.findById(userId);
+    if (!seller) {
+      return sendNotFoundResponse(res, "seller or admin not found...");
     }
 
-    if (email && email !== user.email) {
-      const existingEmail = await sellerModel.findOne({
-        email: { $regex: new RegExp(`^${email}$`, "i") },
-        _id: { $ne: userId }
-      });
+    const { firstName, lastName, email, mobileNo } = req.body || {};
 
-      if (existingEmail) {
-        return sendBadRequestResponse(res, "This email already exists...");
-      }
-    }
+    let img = seller.avatar;
 
-    let avatar = user.avatar;
-    const imageFile = req.file;
+    if (req.file) {
+      const key = img && img.includes(".amazonaws.com/")
+        ? img.split(".amazonaws.com/")[1]
+        : null;
 
-    if (imageFile) {
-      if (avatar) {
-        try {
-          const fileName = avatar.split("/").pop();
-          const oldKey = `uploads/${fileName}`;
-
-          await s3.send(
-            new DeleteObjectCommand({
-              Bucket: process.env.S3_BUCKET_NAME,
-              Key: oldKey,
-            })
-          );
-
-        } catch (err) {
-          console.log("Failed to delete old avatar:", err.message);
-        }
-      }
-
-      const result = await uploadFile(imageFile);
-      avatar = result.url;
-
+      img = key
+        ? await updateS3(key, req.file)
+        : await uploadToS3(req.file);
     }
 
     const updatedUser = await sellerModel.findByIdAndUpdate(
       userId,
       {
-        firstName: firstName || user.firstName,
-        lastName: lastName || user.lastName,
-        email: email || user.email,
-        mobileNo: mobileNo || user.mobileNo,
-        avatar: avatar
+        firstName: firstName || seller.firstName,
+        lastName: lastName || seller.lastName,
+        email: email || seller.email,
+        mobileNo: mobileNo || seller.mobileNo,
+        avatar: img
       },
       { new: true, runValidators: true }
     );
 
     return sendSuccessResponse(res, "Profile updated successfully!", updatedUser);
-
   } catch (error) {
-    return ThrowError(res, 500, error.message);
+    return sendErrorResponse(res, 500, "Error while update Profile", error.message);
   }
 };
 

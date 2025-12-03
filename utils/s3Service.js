@@ -2,7 +2,7 @@ import s3 from "./s3Config.js";
 import { v4 as uuid } from "uuid";
 import 'dotenv/config'
 
-export const uploadToS3 = async (file, folder) => {
+export const uploadToS3 = async (file, folder = "uploads") => {
   if (!file) return null;
 
   const fileKey = `${folder}/${Date.now()}-${uuid()}-${file.originalname.replace(/\s/g, "")}`;
@@ -27,12 +27,12 @@ export const deleteFromS3 = async (fileKey) => {
   return await s3.deleteObject(params).promise();
 };
 
-export const updateS3 = async (oldKey, newFile, folder) => {
-  if (oldKey) {
-    await deleteFromS3(oldKey);
-  }
-  return await uploadToS3(newFile, folder);
-};
+  export const updateS3 = async (oldKey, newFile, folder = "uploads") => {
+    if (oldKey) {
+      await deleteFromS3(oldKey);
+    }
+    return await uploadToS3(newFile, folder);
+  };
 
 export const deleteManyFromS3 = async (keys = []) => {
   if (!keys.length) return;
