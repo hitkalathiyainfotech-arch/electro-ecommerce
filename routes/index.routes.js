@@ -7,6 +7,7 @@ import { deleteFromS3, deleteManyFromS3, listBucketObjects, updateS3, uploadToS3
 import { upload } from '../helper/imageUplode.js';
 import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
 import { createBrand, deleteBrand, getAllBrands, getBrandsById, getSellerBrands, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
+import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/wishlist.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -69,7 +70,10 @@ indexRoutes.get("/searchBrand", searchBrand)
 
 
 
-
+//wishlist
+indexRoutes.post("/addToWishlist/:productId", UserAuth, addToWishlist)
+indexRoutes.get("/getWishlist", UserAuth, getWishlist)
+indexRoutes.delete("/removeFromWishlist/:productId", UserAuth, removeFromWishlist)
 
 
 
@@ -116,7 +120,6 @@ indexRoutes.delete("/delete", async (req, res) => {
   }
 });
 
-
 indexRoutes.delete("/deleteMany", async (req, res) => {
   try {
     const { images } = req.body;
@@ -139,7 +142,6 @@ indexRoutes.delete("/deleteMany", async (req, res) => {
     return sendResponse(res, 500, "Delete many error", error);
   }
 });
-
 
 indexRoutes.put("/update", upload.single("file"), async (req, res) => {
   try {
