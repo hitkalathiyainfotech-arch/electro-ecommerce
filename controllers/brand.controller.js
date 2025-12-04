@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import brandModel from "../models/brand.model.js";
 import { sendErrorResponse, sendForbiddenResponse, sendBadRequestResponse, sendSuccessResponse } from "../utils/response.utils.js";
 import { deleteFromS3, uploadToS3 } from "../utils/s3Service.js";
+import sellerModel from '../models/seller.model.js'
 
 export const createBrand = async (req, res) => {
   try {
