@@ -7,6 +7,7 @@ import { deleteFromS3, deleteManyFromS3, listBucketObjects, updateS3, uploadToS3
 import { upload } from '../helper/imageUplode.js';
 import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
 import { createBrand, deleteBrand, getAllBrands, getBrandsById, getSellerBrands, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
+import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getSellerProducts, updateProduct } from '../controllers/product.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -67,6 +68,15 @@ indexRoutes.put("/updateBrandById/:id", sellerAndAdminAuth, upload.single("brand
 indexRoutes.delete("/deleteBrand/:id", sellerAndAdminAuth, deleteBrand)
 indexRoutes.get("/searchBrand", searchBrand)
 
+//product
+indexRoutes.post("/createProduct", sellerAndAdminAuth, upload.array("productBanner", 10), createProduct);
+indexRoutes.get("/getAllProduct", getAllProduct)
+indexRoutes.get("/getProductById/:id", getProductById);
+indexRoutes.get("/getSellerProducts", sellerAndAdminAuth, getSellerProducts);
+indexRoutes.patch("/updateProduct/:id", sellerAndAdminAuth, upload.array("productBanner", 10), updateProduct);
+indexRoutes.delete("/deleteProduct/:id", sellerAndAdminAuth, deleteProduct)
+indexRoutes.get("/getProductByCategory/:categoryId", getProductByCategory)
+indexRoutes.get("/getProductsByBrand/:brandId", getProductsByBrand)
 
 
 
