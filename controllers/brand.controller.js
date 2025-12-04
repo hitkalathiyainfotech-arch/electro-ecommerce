@@ -7,7 +7,7 @@ import sellerModel from '../models/seller.model.js'
 export const createBrand = async (req, res) => {
   try {
     const { brandName, categories } = req.body;
-    const createdBy = req.user._id;
+    const sellerId = req.user._id;
 
     if (!brandName) {
       return res.status(400).json({
@@ -33,11 +33,11 @@ export const createBrand = async (req, res) => {
       brandName,
       brandImage,
       categories: categories ? JSON.parse(categories) : [],
-      createdBy
+      sellerId
     });
 
     await sellerModel.findByIdAndUpdate(
-      createdBy,
+      sellerId,
       { $push: { brandId: brand._id } },
       { new: true }
     );
@@ -63,11 +63,11 @@ export const getAllBrands = async (req, res) => {
         path: "categories",
         select: "-updatedAt -__v",
         populate: {
-          path: "createdBy",
+          path: "sellerId",
           select: "firstName email avatar role"
         }
       })
-      .populate("createdBy", "firstName mobileNo email avatar role")
+      .populate("sellerId", "firstName mobileNo email avatar role")
       .sort({ createdAt: -1 });
 
     return sendSuccessResponse(res, "All brands featched successfully", brands);
@@ -80,7 +80,7 @@ export const getAllBrands = async (req, res) => {
 export const getSellerBrands = async (req, res) => {
   try {
     const { _id } = req.user;
-    const brand = await brandModel.find({ createdBy: _id }).populate("createdBy", "firstName email avatar role");
+    const brand = await brandModel.find({ sellerId: _id }).populate("sellerId", "firstName email avatar role");
 
     return sendSuccessResponse(res, "Get Seller Brands successfully", brand);
   } catch (error) {
@@ -99,11 +99,11 @@ export const getBrandsById = async (req, res) => {
         path: "categories",
         select: "-updatedAt -__v",
         populate: {
-          path: "createdBy",
+          path: "sellerId",
           select: "firstName email avatar role"
         }
       })
-      .populate("createdBy", "firstName mobileNo email avatar role")
+      .populate("sellerId", "firstName mobileNo email avatar role")
       .sort({ createdAt: -1 });
 
     return sendSuccessResponse(res, "brands featched successfully", brands);
@@ -118,7 +118,7 @@ export const updateBrandById = async (req, res) => {
   try {
     const { id } = req.params;
     const { brandName, categories } = req.body;
-    const updatedBy = req.user._id;
+    const sellerId = req.user._id;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid brand ID" });
@@ -129,7 +129,7 @@ export const updateBrandById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Brand not found" });
     }
 
-    if (req.user.role !== "admin" && String(brand.createdBy) !== String(updatedBy)) {
+    if (req.user.role !== "admin" && String(brand.sellerId) !== String(sellerId)) {
       return sendForbiddenResponse(res, "You are not authorized to update this brand");
     }
 
@@ -158,8 +158,8 @@ export const updateBrandById = async (req, res) => {
       }
     }
 
-    if (brand.schema.path("updatedBy")) {
-      brand.updatedBy = updatedBy;
+    if (brand.schema.path("sellerId")) {
+      brand.sellerId = sellerId;
     }
 
     await brand.save();
@@ -189,7 +189,7 @@ export const deleteBrand = async (req, res) => {
       return sendErrorResponse(res, 404, "Brand not found");
     }
 
-    if (userRole !== "admin" && String(brand.createdBy) !== String(userId)) {
+    if (userRole !== "admin" && String(brand.sellerId) !== String(userId)) {
       return sendForbiddenResponse(res, "You are not authorized to delete this brand");
     }
 

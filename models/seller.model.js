@@ -14,7 +14,7 @@ const sellerSchema = new mongoose.Schema({
   },
   verified: { type: Boolean, default: false },
   brandId: [
-    { type: mongoose.Schema.Types.ObjectId, ref: "Brand" }
+    { type: mongoose.Schema.Types.ObjectId, ref: "brand" }
   ],
   pickUpAddr: [
     {

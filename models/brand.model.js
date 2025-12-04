@@ -18,7 +18,7 @@ const brandSchema = new mongoose.Schema(
         ref: "category"
       }
     ],
-    createdBy: {
+    sellerId: {
       type: mongoose.Types.ObjectId,
       ref: "seller"
     }

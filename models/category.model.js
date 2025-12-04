@@ -9,7 +9,7 @@ const categorySchema = new mongoose.Schema({
     type: String,
     default: null
   },
-  createdBy: {
+  sellerId: {
     type: mongoose.Types.ObjectId,
     ref: "seller",
     default: null

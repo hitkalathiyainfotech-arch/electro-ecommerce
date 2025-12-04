@@ -32,7 +32,7 @@ export const createNewCategory = async (req, res) => {
     const category = await categoryModel.create({
       name: name,
       image: img,
-      createdBy: _id
+      sellerId: _id
     })
 
     await category.save();
@@ -48,7 +48,7 @@ export const createNewCategory = async (req, res) => {
 export const getAllCategory = async (req, res) => {
   try {
     const category = await categoryModel.find({})
-      .populate("createdBy", "firstName mobileNo email avatar role")
+      .populate("sellerId", "firstName mobileNo email avatar role")
       .sort({ createdAt: -1 })
 
     return sendSuccessResponse(res, "All Category Featched Successfully", {
@@ -66,7 +66,7 @@ export const getCategoryById = async (req, res) => {
     const { id } = req.params;
 
     const category = await categoryModel.find({ _id: id })
-      .populate("createdBy", "firstName mobileNo email avatar role")
+      .populate("sellerId", "firstName mobileNo email avatar role")
       .sort({ createdAt: -1 })
 
     return sendSuccessResponse(res, "All Category Featched Successfully", {
