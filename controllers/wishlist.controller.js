@@ -50,39 +50,11 @@ export const getWishlist = async (req, res) => {
       .findOne({ userId })
       .populate({
         path: "items.productId",
-        model: "Product",
-        populate: [
-          {
-            path: "brand",
-            model: "Brand",
-            select: "brandName logo description",
-          },
-          {
-            path: "mainCategory",
-            model: "MainCategory",
-            select: "mainCategoryName mainCategoryImage",
-          },
-          {
-            path: "category",
-            model: "Category",
-            select: "categoryName categoryImage",
-          },
-          {
-            path: "subCategory",
-            model: "SubCategory",
-            select: "subCategoryName subCategoryImage",
-          },
-          {
-            path: "insideSubCategory",
-            model: "insideSubCategory",
-            select: "insideSubCategoryName insideSubCategoryImage",
-          },
-          {
-            path: "varientId",
-            model: "ProductVariant",
-            select: "-__v -createdAt -updatedAt",
-          },
-        ],
+        model: "product",
+        populate: {
+          path: "categories",
+          model:"category"
+        }
       })
       .lean();
 
