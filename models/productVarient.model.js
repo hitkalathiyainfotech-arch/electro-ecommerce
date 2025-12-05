@@ -23,6 +23,7 @@ const productVariantSchema = new mongoose.Schema(
         sku: { type: String, unique: true, required: true },
         color: colorSchema,
         variantTitle: { type: String, required: true },
+        variantDescription: { type: String, required: true },
         emi: Boolean,
         overview: [
             {
@@ -30,7 +31,12 @@ const productVariantSchema = new mongoose.Schema(
                 value: { type: String, required: true }
             }
         ],
-        key_features: [String],
+        key_features: [
+            {
+                title: { type: String, required: true },
+                description: { type: String }
+            }
+        ],
         specification: [
             {
                 title: { type: String, required: true },

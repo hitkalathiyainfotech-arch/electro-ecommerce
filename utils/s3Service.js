@@ -19,20 +19,33 @@ export const uploadToS3 = async (file, folder = "uploads") => {
 };
 
 export const deleteFromS3 = async (fileKey) => {
+  if (fileKey) {
+    const decodedKey = decodeURIComponent(fileKey);
+    console.log("Decoded Key:", decodedKey);
+  }
+
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
     Key: fileKey
   };
 
-  return await s3.deleteObject(params).promise();
+
+  try {
+    const result = await s3.deleteObject(params).promise();
+    return result;
+  } catch (error) {
+    console.error("❌ S3 Delete Error:", error.message);
+    console.error("Full Error:", error);
+    throw error;
+  }
 };
 
-  export const updateS3 = async (oldKey, newFile, folder = "uploads") => {
-    if (oldKey) {
-      await deleteFromS3(oldKey);
-    }
-    return await uploadToS3(newFile, folder);
-  };
+export const updateS3 = async (oldKey, newFile, folder = "uploads") => {
+  if (oldKey) {
+    await deleteFromS3(oldKey);
+  }
+  return await uploadToS3(newFile, folder);
+};
 
 export const deleteManyFromS3 = async (keys = []) => {
   if (!keys.length) return;
