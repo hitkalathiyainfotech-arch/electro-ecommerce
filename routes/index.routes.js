@@ -9,6 +9,7 @@ import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, sea
 import { createBrand, deleteBrand, getAllBrands, getBrandsById, getSellerBrands, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/wishlist.controller.js';
 import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getSellerProducts, updateProduct } from '../controllers/product.controller.js';
+import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, getSellerProductVarient, updateProductVariant } from '../controllers/productVariant.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -78,6 +79,16 @@ indexRoutes.patch("/updateProduct/:id", sellerAndAdminAuth, upload.array("produc
 indexRoutes.delete("/deleteProduct/:id", sellerAndAdminAuth, deleteProduct)
 indexRoutes.get("/getProductByCategory/:categoryId", getProductByCategory)
 indexRoutes.get("/getProductsByBrand/:brandId", getProductsByBrand)
+
+
+//productVarient
+indexRoutes.post("/createProductVariant", sellerAndAdminAuth, upload.array("images", 10), createProductVariant);
+indexRoutes.get("/getAllProductVariant", getAllProductVariant);
+indexRoutes.get("/getSellerProductVarient", sellerAndAdminAuth, getSellerProductVarient);
+indexRoutes.get("/getProductVarientById/:id", getProductVarientById);
+indexRoutes.patch("/updateProductVariant/:variantId", sellerAndAdminAuth, upload.array("images", 10), updateProductVariant);
+indexRoutes.delete("/deleteProductVariant/:variantId", sellerAndAdminAuth, deleteProductVariant);
+indexRoutes.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 
 
 //wishlist
