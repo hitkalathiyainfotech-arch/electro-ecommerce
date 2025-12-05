@@ -95,7 +95,8 @@ export const getAllProduct = async (req, res) => {
         const products = await Product.find()
             .populate("brand", "brandName logo description")
             .populate("sellerId", "firstName lastName email shopName")
-            .populate("categories", "name image");
+            .populate("categories", "name image")
+            .populate("variantId");
 
         return res.status(200).json({
             success: true,
