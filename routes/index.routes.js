@@ -2,7 +2,10 @@ import express from 'express';
 import { addNewAddress, createUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, verifyOtp } from '../controllers/user.controller.js';
 import { adminAuth, sellerAndAdminAuth, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { createAdminController, getAllSeller, getSeller, newSellerController, sellerForgetPasswordController, sellerLoginController, sellerPasswordChangeController, sellerPasswordResetController, sellerPickUpAddressSetController, sellerVerifyForgetOtpController, updateProfile } from '../controllers/seller.controller.js';
-import { sendResponse, sendSuccessResponse } from '../utils/response.utils.js';
+import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/response.utils.js';
+import mongoose from 'mongoose';
+import Product from '../models/product.model.js';
+import comboModel from '../models/combo.model.js';
 import { deleteFromS3, deleteManyFromS3, listBucketObjects, updateS3, uploadToS3 } from '../utils/s3Service.js';
 import { upload } from '../helper/imageUplode.js';
 import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
@@ -10,6 +13,7 @@ import { createBrand, deleteBrand, getAllBrands, getBrandsById, getSellerBrands,
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/wishlist.controller.js';
 import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getSellerProducts, updateProduct } from '../controllers/product.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, getSellerProductVarient, updateProductVariant } from '../controllers/productVariant.controller.js';
+import comboController from '../controllers/combo.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -90,6 +94,18 @@ indexRoutes.patch("/updateProductVariant/:variantId", sellerAndAdminAuth, upload
 indexRoutes.delete("/deleteProductVariant/:variantId", sellerAndAdminAuth, deleteProductVariant);
 indexRoutes.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 
+// Combo endpoints (integrated into main router)
+indexRoutes.post("/combo/create", sellerAndAdminAuth, comboController.createCombo);
+indexRoutes.get("/getAllCombos", comboController.getAllCombos);
+indexRoutes.get("/getComboById/:id", comboController.getComboById);
+indexRoutes.get("/combo/seller", sellerAuth, comboController.getSellerCombos);
+indexRoutes.put("/updateCombo/:id", sellerAndAdminAuth, comboController.updateCombo);
+indexRoutes.delete("/combo/:id", sellerAndAdminAuth, comboController.deleteCombo);
+indexRoutes.patch("/combo/toggle/:id", sellerAndAdminAuth, comboController.toggleComboActive);
+indexRoutes.post("/combo/apply/:id", comboController.applyCombo);
+
+// Product -> seller -> combo: get combos for the seller that owns a given product
+indexRoutes.get("/product/:productId/combos", comboController.getProductSellerCombos);
 
 //wishlist
 indexRoutes.post("/addToWishlist/:productId", UserAuth, addToWishlist)
@@ -163,6 +179,8 @@ indexRoutes.delete("/deleteMany", async (req, res) => {
     return sendResponse(res, 500, "Delete many error", error);
   }
 });
+
+// (combo routes integrated above)
 
 indexRoutes.put("/update", upload.single("file"), async (req, res) => {
   try {
