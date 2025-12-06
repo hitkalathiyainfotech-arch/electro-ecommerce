@@ -10,6 +10,7 @@ import { createBrand, deleteBrand, getAllBrands, getBrandsById, getSellerBrands,
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/wishlist.controller.js';
 import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getSellerProducts, updateProduct } from '../controllers/product.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, getSellerProductVarient, updateProductVariant } from '../controllers/productVariant.controller.js';
+import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -90,6 +91,14 @@ indexRoutes.patch("/updateProductVariant/:variantId", sellerAndAdminAuth, upload
 indexRoutes.delete("/deleteProductVariant/:variantId", sellerAndAdminAuth, deleteProductVariant);
 indexRoutes.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 
+// Coupon
+indexRoutes.post("/admin/createCoupon", upload.single("couponImage"), adminAuth, createCoupon);
+indexRoutes.get("/getAllCoupon", getAllCoupon);
+indexRoutes.get("/getCouponById/:id", getCouponById);
+indexRoutes.patch("/admin/updateCoupon/:id", adminAuth, upload.single("couponImage"), updateCoupon);
+indexRoutes.delete("/admin/deleteCoupon/:id", adminAuth, deleteCoupon);
+indexRoutes.post("/apply-coupon", UserAuth, applyCouponController);
+indexRoutes.post("/remove-coupon", UserAuth, removeCouponController);
 
 //wishlist
 indexRoutes.post("/addToWishlist/:productId", UserAuth, addToWishlist)

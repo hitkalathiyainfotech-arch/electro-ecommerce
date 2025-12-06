@@ -50,13 +50,6 @@ const couponSchema = new mongoose.Schema({
   timestamps: true
 });
 
-couponSchema.pre('save', function (next) {
-  if (this.expiryDate && this.expiryDate < new Date()) {
-    this.isActive = false;
-  }
-  next();
-});
-
 couponSchema.statics.isValidCoupon = async function (code) {
   const coupon = await this.findOne({
     code: code.toUpperCase(),

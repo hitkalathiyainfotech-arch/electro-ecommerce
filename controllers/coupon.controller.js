@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import CouponModel from "../models/coupon.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
 import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse, sendErrorResponse } from "../utils/response.utils.js";
-import cartModel from "../models/cart.model.js";
+// import cartModel from "../models/cart.model.js";
 import { deleteFromS3, updateS3, uploadToS3 } from "../utils/s3Service.js";
 
 export const createCoupon = async (req, res) => {
@@ -18,58 +18,146 @@ export const createCoupon = async (req, res) => {
             isActive,
         } = req.body;
 
-        const file = req.file;
+        const couponImage = req.file;
 
         if (!code || !description || !discountType || !expiryDate) {
             return sendBadRequestResponse(res, "All required fields must be provided");
+        }
+
+        if (!couponImage) {
+            return sendBadRequestResponse(res, "Coupon Image is Required");
         }
 
         if (!["flat", "percentage"].includes(discountType)) {
             return sendBadRequestResponse(res, "Discount type must be either 'flat' or 'percentage'");
         }
 
-        let finalFlatValue = flatValue || 0;
-        let finalPercentageValue = percentageValue || 0;
+        const parsedFlatValue = parseFloat(flatValue);
+        const parsedPercentageValue = parseFloat(percentageValue);
+        const parsedMinOrderValue = parseFloat(minOrderValue) || 0;
+
+        let finalFlatValue = 0;
+        let finalPercentageValue = 0;
 
         if (discountType === "flat") {
-            if (!flatValue || flatValue <= 0)
+            if (!flatValue || isNaN(parsedFlatValue) || parsedFlatValue <= 0) {
                 return sendBadRequestResponse(res, "Flat value must be provided and > 0 for flat type");
-            finalPercentageValue = 0;
+            }
+            finalFlatValue = parsedFlatValue;
         } else {
-            if (!percentageValue || percentageValue <= 0 || percentageValue > 100)
+            if (!percentageValue || isNaN(parsedPercentageValue) || parsedPercentageValue <= 0 || parsedPercentageValue > 100) {
                 return sendBadRequestResponse(res, "Percentage value must be between 1–100 for percentage type");
-            finalFlatValue = 0;
+            }
+            finalPercentageValue = parsedPercentageValue;
         }
 
         const existCoupon = await CouponModel.findOne({ code: code.toUpperCase() });
-        if (existCoupon) return sendBadRequestResponse(res, "Coupon code already exists");
+        if (existCoupon) {
+            return sendBadRequestResponse(res, "Coupon code already exists");
+        }
 
-        const [day, month, year] = expiryDate.split("/").map(Number);
-        const expiry = new Date(year, month - 1, day, 23, 59, 59, 999);
-        if (expiry < new Date()) return sendBadRequestResponse(res, "Expiry date cannot be in the past");
+        let expiry;
+        let day, month, year;
+
+        if (expiryDate.includes("-")) {
+            const parts = expiryDate.split("-");
+            if (parts.length === 3) {
+                day = parseInt(parts[0], 10);
+                month = parseInt(parts[1], 10) - 1;
+                year = parseInt(parts[2], 10);
+            }
+        } else if (expiryDate.includes("/")) {
+            const parts = expiryDate.split("/");
+            if (parts.length === 3) {
+                day = parseInt(parts[0], 10);
+                month = parseInt(parts[1], 10) - 1;
+                year = parseInt(parts[2], 10);
+            }
+        }
+
+        if (!day || !month || !year ||
+            isNaN(day) || isNaN(month) || isNaN(year) ||
+            day < 1 || day > 31 ||
+            month < 0 || month > 11 ||
+            year < 2024 || year > 2100) {
+            return sendBadRequestResponse(res, "Invalid expiry date format. Please use DD-MM-YYYY format (e.g., 07-12-2025)");
+        }
+
+        expiry = new Date(year, month, day, 23, 59, 59, 999);
+
+        if (isNaN(expiry.getTime())) {
+            return sendBadRequestResponse(res, "Invalid expiry date");
+        }
+
+        if (expiry.getDate() !== day ||
+            expiry.getMonth() !== month ||
+            expiry.getFullYear() !== year) {
+            return sendBadRequestResponse(res, "Invalid expiry date. Please provide a valid date");
+        }
+
+        if (expiry < new Date()) {
+            return sendBadRequestResponse(res, "Expiry date cannot be in the past");
+        }
 
         let couponImageUrl = null;
-        if (file) {
-            const uploaded = await uploadToS3(file);
-            couponImageUrl = uploaded.url;
+
+        if (couponImage) {
+            console.log("Uploading image to S3:", couponImage);
+            console.log("File details:", {
+                originalname: couponImage.originalname,
+                mimetype: couponImage.mimetype,
+                size: couponImage.size
+            });
+
+            try {
+                const uploaded = await uploadToS3(couponImage, "coupons");
+                console.log("S3 upload response:", uploaded);
+
+                // Check different possible response structures
+                if (uploaded && uploaded.url) {
+                    couponImageUrl = uploaded.url;
+                } else if (uploaded && uploaded.Location) {
+                    couponImageUrl = uploaded.Location; // AWS S3 returns Location
+                } else if (uploaded && uploaded.key) {
+                    couponImageUrl = `https://your-bucket.s3.amazonaws.com/${uploaded.key}`;
+                } else if (typeof uploaded === 'string') {
+                    couponImageUrl = uploaded;
+                } else {
+                    console.error("Unexpected S3 response structure:", uploaded);
+                }
+
+                console.log("Final image URL:", couponImageUrl);
+            } catch (s3Error) {
+                console.error("S3 upload error:", s3Error);
+                return sendBadRequestResponse(res, "Failed to upload image to S3");
+            }
         }
 
         const newCoupon = await CouponModel.create({
-            code: code.toUpperCase(),
-            description,
+            code: code.toUpperCase().trim(),
+            description: description.trim(),
             discountType,
             flatValue: finalFlatValue,
             percentageValue: finalPercentageValue,
-            minOrderValue: minOrderValue || 0,
+            minOrderValue: parsedMinOrderValue,
             expiryDate: expiry,
-            isActive: isActive ?? true,
+            isActive: isActive !== undefined ? (isActive === "true" || isActive === true) : true,
             couponImage: couponImageUrl,
         });
 
+        console.log("Coupon created with image URL:", couponImageUrl);
+
         return sendSuccessResponse(res, "Coupon created successfully", newCoupon);
     } catch (error) {
-        console.error(error);
-        return ThrowError(res, 500, error.message);
+        console.error("Error while creating coupon:", error.message);
+        console.error("Full error stack:", error);
+
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(val => val.message);
+            return sendErrorResponse(res, 400, "Validation Error", messages.join(', '));
+        }
+
+        return sendErrorResponse(res, 500, "Error while creating coupon", error.message);
     }
 };
 
@@ -112,7 +200,7 @@ export const getCouponById = async (req, res) => {
 export const updateCoupon = async (req, res) => {
     try {
         const { id } = req.params;
-        const file = req.file;
+        const couponImage = req.file;
         const {
             code,
             description,
@@ -128,12 +216,12 @@ export const updateCoupon = async (req, res) => {
             return sendBadRequestResponse(res, "Invalid Coupon ID!");
         }
 
-        const existingCoupon = await CouponModel.findById(id);
-        if (!existingCoupon) {
+        let coupon = await CouponModel.findOne({ _id: id });
+        if (!coupon) {
             return sendNotFoundResponse(res, "Coupon not found!");
         }
 
-        if (code && code !== existingCoupon.code) {
+        if (code && code !== coupon.code) {
             const existCoupon = await CouponModel.findOne({
                 code: code.toUpperCase(),
                 _id: { $ne: id },
@@ -141,97 +229,117 @@ export const updateCoupon = async (req, res) => {
             if (existCoupon) {
                 return sendBadRequestResponse(res, "Coupon code already exists");
             }
+            coupon.code = code.toUpperCase();
         }
 
-        const allowedUpdates = [
-            "code",
-            "description",
-            "discountType",
-            "flatValue",
-            "percentageValue",
-            "minOrderValue",
-            "expiryDate",
-            "isActive",
-        ];
+        if (description) coupon.description = description;
+        if (minOrderValue !== undefined) coupon.minOrderValue = minOrderValue;
+        if (isActive !== undefined) coupon.isActive = isActive;
 
-        const updates = {};
-        Object.keys(req.body).forEach((key) => {
-            if (allowedUpdates.includes(key)) {
-                updates[key] = req.body[key];
+        if (discountType) {
+            if (!["flat", "percentage"].includes(discountType)) {
+                return sendBadRequestResponse(res, "Discount type must be either 'flat' or 'percentage'");
             }
-        });
+            coupon.discountType = discountType;
+        }
 
-        let finalFlatValue =
-            updates.flatValue !== undefined
-                ? updates.flatValue
-                : existingCoupon.flatValue;
-        let finalPercentageValue =
-            updates.percentageValue !== undefined
-                ? updates.percentageValue
-                : existingCoupon.percentageValue;
+        let finalFlatValue = flatValue !== undefined ? parseFloat(flatValue) : coupon.flatValue;
+        let finalPercentageValue = percentageValue !== undefined ? parseFloat(percentageValue) : coupon.percentageValue;
 
-        if (
-            updates.discountType ||
-            updates.flatValue !== undefined ||
-            updates.percentageValue !== undefined
-        ) {
-            const type = updates.discountType || existingCoupon.discountType;
+        if (discountType || flatValue !== undefined || percentageValue !== undefined) {
+            const type = discountType || coupon.discountType;
 
             if (type === "flat") {
-                if (updates.flatValue !== undefined && updates.flatValue <= 0) {
+                if (flatValue !== undefined && (isNaN(finalFlatValue) || finalFlatValue <= 0)) {
                     return sendBadRequestResponse(res, "Flat value must be greater than 0");
                 }
-                finalPercentageValue = 0;
-                updates.percentageValue = 0;
+                coupon.percentageValue = 0;
+                if (flatValue !== undefined) coupon.flatValue = finalFlatValue;
             } else if (type === "percentage") {
-                if (
-                    updates.percentageValue !== undefined &&
-                    (updates.percentageValue <= 0 || updates.percentageValue > 100)
-                ) {
-                    return sendBadRequestResponse(
-                        res,
-                        "Percentage value must be between 1 and 100"
-                    );
+                if (percentageValue !== undefined && (isNaN(finalPercentageValue) || finalPercentageValue <= 0 || finalPercentageValue > 100)) {
+                    return sendBadRequestResponse(res, "Percentage value must be between 1 and 100");
                 }
-                finalFlatValue = 0;
-                updates.flatValue = 0;
+                coupon.flatValue = 0;
+                if (percentageValue !== undefined) coupon.percentageValue = finalPercentageValue;
             }
-
-            updates.flatValue = finalFlatValue;
-            updates.percentageValue = finalPercentageValue;
         }
 
-        if (updates.expiryDate) {
-            const [day, month, year] = updates.expiryDate.split("/").map(Number);
-            updates.expiryDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+        if (expiryDate) {
+            let expiry;
+            let day, month, year;
 
-            if (updates.expiryDate < new Date()) {
+            if (expiryDate.includes("-")) {
+                const parts = expiryDate.split("-");
+                if (parts.length === 3) {
+                    day = parseInt(parts[0], 10);
+                    month = parseInt(parts[1], 10) - 1;
+                    year = parseInt(parts[2], 10);
+                }
+            } else if (expiryDate.includes("/")) {
+                const parts = expiryDate.split("/");
+                if (parts.length === 3) {
+                    day = parseInt(parts[0], 10);
+                    month = parseInt(parts[1], 10) - 1;
+                    year = parseInt(parts[2], 10);
+                }
+            }
+
+            if (!day || !month || !year ||
+                isNaN(day) || isNaN(month) || isNaN(year) ||
+                day < 1 || day > 31 ||
+                month < 0 || month > 11 ||
+                year < 2024 || year > 2100) {
+                return sendBadRequestResponse(res, "Invalid expiry date format. Please use DD-MM-YYYY format");
+            }
+
+            expiry = new Date(year, month, day, 23, 59, 59, 999);
+
+            if (isNaN(expiry.getTime())) {
+                return sendBadRequestResponse(res, "Invalid expiry date");
+            }
+
+            if (expiry.getDate() !== day ||
+                expiry.getMonth() !== month ||
+                expiry.getFullYear() !== year) {
+                return sendBadRequestResponse(res, "Invalid expiry date. Please provide a valid date");
+            }
+
+            if (expiry < new Date()) {
                 return sendBadRequestResponse(res, "Expiry date cannot be in the past");
             }
+
+            coupon.expiryDate = expiry;
         }
 
-        if (updates.code) {
-            updates.code = updates.code.toUpperCase();
-        }
+        if (couponImage) {
+            let img = null;
 
-        if (file) {
-            if (existingCoupon.couponImage) {
-                await deleteFileFromS3(existingCoupon.couponImage);
+            if (coupon.couponImage) {
+                // Extract key from existing image URL
+                const key = coupon.couponImage.split(".amazonaws.com/")[1];
+                // Use updateS3 function like in category update
+                img = await updateS3(key, couponImage);
+            } else {
+                // If no existing image, upload new one
+                const uploaded = await uploadToS3(couponImage, "coupons");
+                if (uploaded && uploaded.url) {
+                    img = uploaded.url;
+                } else if (uploaded && uploaded.Location) {
+                    img = uploaded.Location;
+                } else if (typeof uploaded === 'string') {
+                    img = uploaded;
+                }
             }
 
-            const uploaded = await uploadFile(file);
-            updates.couponImage = uploaded.url;
+            coupon.couponImage = img;
         }
 
-        const updatedCoupon = await CouponModel.findByIdAndUpdate(id, updates, {
-            new: true,
-            runValidators: true,
-        });
+        await coupon.save();
 
-        return sendSuccessResponse(res, "Coupon updated successfully!", updatedCoupon);
+        return sendSuccessResponse(res, "Coupon updated successfully!", coupon);
     } catch (error) {
         console.error("Error updating coupon:", error);
-        return ThrowError(res, 500, error.message);
+        return sendErrorResponse(res, 500, "Error updating coupon", error.message);
     }
 };
 
