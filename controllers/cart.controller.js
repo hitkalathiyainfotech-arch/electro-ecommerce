@@ -4,23 +4,17 @@ import Product from "../models/product.model.js";
 import ProductVariant from "../models/productVarient.model.js";
 import ComboOffer from "../models/combo.model.js";
 import Coupon from "../models/coupon.model.js";
-import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse, sendCreatedResponse } from "../utils/response.utils.js";
+import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/response.utils.js";
 
-// Add item to cart (product, variant, or combo)
 export const addToCart = async (req, res) => {
   try {
     const userId = req.user?._id;
-    const { productId, variantId, comboId, quantity, selectedColor, selectedSize } = req.body;
+    const { productId, variantId, comboId, quantity, selectedSize } = req.body;
 
     if (!userId) return sendBadRequestResponse(res, "User ID required");
-    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
-      return sendBadRequestResponse(res, "Valid productId required");
-    }
-    if (!quantity) return sendBadRequestResponse(res, "Quantity required");
-
-    if (typeof quantity !== "number") {
-      return sendBadRequestResponse(res, "quantity Type must be a Number")
-    }
+    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) return sendBadRequestResponse(res, "Valid productId required");
+    if (quantity === undefined || quantity === null) return sendBadRequestResponse(res, "Quantity required");
+    if (typeof quantity !== "number") return sendBadRequestResponse(res, "quantity Type must be a Number");
 
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = await Cart.create({ userId, items: [] });
@@ -33,30 +27,38 @@ export const addToCart = async (req, res) => {
     let discountedPrice = null;
     let variant = null;
     let combo = null;
+    let finalColor = null;
+    let finalSize = null;
 
     if (variantId && mongoose.Types.ObjectId.isValid(variantId)) {
       variant = await ProductVariant.findById(variantId).lean();
       if (!variant) return sendNotFoundResponse(res, "Variant not found");
-      if (variant.productId.toString() !== productId) {
-        return sendBadRequestResponse(res, "Variant mismatch");
-      }
+      if (variant.productId.toString() !== productId) return sendBadRequestResponse(res, "Variant mismatch");
 
       const colorData = variant.color;
-      if (selectedColor && colorData?.colorName !== selectedColor) {
-        return sendBadRequestResponse(res, "Selected color not available");
-      }
+      if (!colorData || !colorData.colorName) return sendBadRequestResponse(res, "Color data not available");
 
-      if (selectedSize && colorData?.sizes?.length > 0) {
+      finalColor = colorData.colorName;
+
+      if (Array.isArray(colorData.sizes) && colorData.sizes.length > 0) {
+        if (!selectedSize) return sendBadRequestResponse(res, "Size selection is required for this variant");
         const sizeData = colorData.sizes.find(x => x.sizeValue === selectedSize);
-        if (!sizeData) return sendBadRequestResponse(res, "Size not available");
+        if (!sizeData) return sendBadRequestResponse(res, `Size ${selectedSize} not available`);
+        if (!sizeData.stock || sizeData.stock <= 0) return sendBadRequestResponse(res, `Size ${selectedSize} is out of stock`);
+        finalSize = selectedSize;
         stock = sizeData.stock || 0;
         price = sizeData.price || 0;
         discountedPrice = sizeData.discountedPrice || null;
       } else {
-        stock = colorData?.stock || 0;
-        price = colorData?.price || 0;
-        discountedPrice = colorData?.discountedPrice || null;
+        finalSize = null;
+        stock = colorData.stock || 0;
+        price = colorData.price || 0;
+        discountedPrice = colorData.discountedPrice || null;
       }
+    } else {
+      price = product.price ?? product.sellingPrice ?? 0;
+      discountedPrice = product.discountedPrice ?? null;
+      stock = product.stock ?? 0;
     }
 
     let isComboItem = false;
@@ -65,44 +67,38 @@ export const addToCart = async (req, res) => {
       if (combo?.isActive) isComboItem = true;
     }
 
-    const finalPrice = discountedPrice || price;
+    const finalUnitPrice = discountedPrice || price || 0;
 
     const existingIndex = cart.items.findIndex(item =>
       item.product.toString() === productId &&
       String(item.variant) === String(variantId || null) &&
-      String(item.selectedColor || "") === String(selectedColor || "") &&
-      String(item.selectedSize || "") === String(selectedSize || "")
+      String(item.selectedColor || "") === String(finalColor || "") &&
+      String(item.selectedSize || "") === String(finalSize || "")
     );
 
     if (existingIndex >= 0) {
       const newQty = cart.items[existingIndex].quantity + quantity;
-
       if (newQty <= 0) {
         cart.items.splice(existingIndex, 1);
       } else {
-        if (stock && newQty > stock) {
-          return sendBadRequestResponse(res, `Max available: ${stock}`);
-        }
+        if (stock && newQty > stock) return sendBadRequestResponse(res, `Max available: ${stock}`);
         cart.items[existingIndex].quantity = newQty;
-        cart.items[existingIndex].totalPrice = price * newQty;
-        cart.items[existingIndex].totalDiscountedPrice = finalPrice * newQty;
+        cart.items[existingIndex].totalPrice = cart.items[existingIndex].price * newQty;
+        cart.items[existingIndex].totalDiscountedPrice = cart.items[existingIndex].discountedPrice * newQty;
       }
     } else {
-      if (stock && quantity > stock) {
-        return sendBadRequestResponse(res, `Max available: ${stock}`);
-      }
-
+      if (stock && quantity > stock) return sendBadRequestResponse(res, `Max available: ${stock}`);
       cart.items.push({
         product: productId,
         variant: variantId || null,
         comboOffer: comboId || null,
-        selectedColor: selectedColor || null,
-        selectedSize: selectedSize || null,
-        price,
-        discountedPrice: finalPrice,
+        selectedColor: finalColor || null,
+        selectedSize: finalSize || null,
+        price: price || 0,
+        discountedPrice: finalUnitPrice,
         quantity,
-        totalPrice: price * quantity,
-        totalDiscountedPrice: finalPrice * quantity,
+        totalPrice: (price || 0) * quantity,
+        totalDiscountedPrice: finalUnitPrice * quantity,
         stock,
         sellerId: product.sellerId,
         isComboItem
@@ -131,11 +127,21 @@ export const getCart = async (req, res) => {
 
     let cart = await Cart.findOne({ userId })
       .populate("items.product")
-      .populate("items.variant")
+      .populate("items.variant", "-overview -key_features -specification")
       .populate("items.comboOffer")
       .populate("appliedCombos.comboId");
 
     if (!cart) cart = await Cart.create({ userId, items: [] });
+
+    cart.items = cart.items.map(item => {
+      if (item.variant && item.variant.color && Array.isArray(item.variant.color.sizes)) {
+        const selectedSizeData = item.variant.color.sizes.find(s => s.sizeValue === item.selectedSize);
+        if (selectedSizeData) {
+          item.variant.color.sizes = [selectedSizeData];
+        }
+      }
+      return item;
+    });
 
     recalculateCart(cart);
 
@@ -231,12 +237,12 @@ export const clearCart = async (req, res) => {
 export const applyComboToCart = async (req, res) => {
   try {
     const userId = req.user?._id;
+    const { quantity } = req.body;
     const { comboId } = req.params;
-
     if (!userId) return sendBadRequestResponse(res, "User ID required");
-    if (!comboId || !mongoose.Types.ObjectId.isValid(comboId)) {
-      return sendBadRequestResponse(res, "Valid comboId required");
-    }
+    if (!comboId || !mongoose.Types.ObjectId.isValid(comboId)) return sendBadRequestResponse(res, "Valid comboId required");
+    if (quantity === undefined || quantity === null) return sendBadRequestResponse(res, "Quantity required");
+    if (typeof quantity !== "number" || quantity < 1) return sendBadRequestResponse(res, "Quantity must be a positive number");
 
     const cart = await Cart.findOne({ userId });
     if (!cart) return sendNotFoundResponse(res, "Cart not found");
@@ -255,44 +261,77 @@ export const applyComboToCart = async (req, res) => {
     for (const cp of combo.products) {
       const prod = cp.product;
       const variant = cp.variant;
+      const comboQty = (cp.quantity || 1) * quantity;
 
       let basePrice = 0;
-      let baseDiscount = 0;
       let stock = 1;
+      let selectedColor = null;
+      let selectedSize = null;
 
       if (variant) {
-        basePrice = variant.color?.price ?? 0;
-        baseDiscount = variant.color?.discountedPrice ?? 0;
-        stock = variant.color?.stock ?? 1;
+        const colorObj = variant.color || {};
+        selectedColor = colorObj.colorName || null;
+
+        if (Array.isArray(colorObj.sizes) && colorObj.sizes.length > 0) {
+          const sizeObj = colorObj.sizes[0];
+          selectedSize = sizeObj.sizeValue;
+          stock = sizeObj.stock || 0;
+          basePrice = sizeObj.price ?? 0;
+
+          if (!stock || stock <= 0) {
+            return sendBadRequestResponse(res, `Combo product ${prod.title} size ${selectedSize} is out of stock`);
+          }
+          if (comboQty > stock) {
+            return sendBadRequestResponse(res, `Insufficient stock for ${prod.title}. Available: ${stock}`);
+          }
+        } else {
+          stock = colorObj.stock || 0;
+          basePrice = colorObj.price ?? 0;
+
+          if (!stock || stock <= 0) {
+            return sendBadRequestResponse(res, `Combo product ${prod.title} is out of stock`);
+          }
+          if (comboQty > stock) {
+            return sendBadRequestResponse(res, `Insufficient stock for ${prod.title}. Available: ${stock}`);
+          }
+        }
       } else {
         basePrice = prod.price ?? prod.sellingPrice ?? 0;
-        baseDiscount = prod.discountedPrice ?? 0;
-        stock = prod.stock ?? 1;
+        stock = prod.stock ?? 0;
+
+        if (!stock || stock <= 0) {
+          return sendBadRequestResponse(res, `Combo product ${prod.title} is out of stock`);
+        }
+        if (comboQty > stock) {
+          return sendBadRequestResponse(res, `Insufficient stock for ${prod.title}. Available: ${stock}`);
+        }
       }
 
-      const unitPrice = cp.offerPrice || baseDiscount || basePrice || 0;
-      const qty = cp.quantity || 1;
+      const unitPrice = cp.offerPrice || basePrice || 0;
 
       const existing = cart.items.find(i =>
         i.product.toString() === prod._id.toString() &&
-        (variant ? i.variant?.toString() === variant._id.toString() : !i.variant)
+        (variant ? String(i.variant) === String(variant._id) : !i.variant) &&
+        String(i.selectedColor || "") === String(selectedColor || "") &&
+        String(i.selectedSize || "") === String(selectedSize || "")
       );
 
       if (existing) {
-        existing.quantity += qty;
-        existing.totalPrice = existing.quantity * unitPrice;
-        existing.totalDiscountedPrice = existing.totalPrice;
+        existing.quantity += comboQty;
+        existing.totalPrice = existing.price * existing.quantity;
+        existing.totalDiscountedPrice = existing.discountedPrice * existing.quantity;
       } else {
         cart.items.push({
           product: prod._id,
-          variant: variant?._id,
+          variant: variant?._id || null,
           comboOffer: comboId,
-          selectedColor: variant?.color?.colorName,
+          selectedColor: selectedColor || null,
+          selectedSize: selectedSize || null,
           price: unitPrice,
           discountedPrice: unitPrice,
-          quantity: qty,
-          totalPrice: qty * unitPrice,
-          totalDiscountedPrice: qty * unitPrice,
+          quantity: comboQty,
+          totalPrice: comboQty * unitPrice,
+          totalDiscountedPrice: comboQty * unitPrice,
           sellerId: prod.sellerId,
           stock,
           isComboItem: true
@@ -300,17 +339,19 @@ export const applyComboToCart = async (req, res) => {
       }
     }
 
-    const discountApplied = combo.originalPrice - combo.discountPrice;
+    const discountApplied = (combo.originalPrice || 0) - (combo.discountPrice || 0);
 
-    cart.appliedCombos.push({
-      comboId,
-      discountApplied
-    });
+    cart.appliedCombos.push({ comboId, discountApplied });
 
     recalculateCart(cart);
     await cart.save();
 
-    return sendSuccessResponse(res, "Combo applied", cart);
+    const populatedCart = await Cart.findById(cart._id)
+      .populate("items.product", "title productBanner")
+      .populate("items.variant", "-overview -key_features -specification")
+      .populate("appliedCombos.comboId", "title discountPrice");
+
+    return sendSuccessResponse(res, "Combo applied successfully", populatedCart);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -453,7 +494,7 @@ export const cartBillingPreview = async (req, res) => {
       userId,
       cartItems: cart.items.length,
       itemsBySeller,
-      
+
       pricingSummary: {
         subtotal: Math.round(subtotal),
         itemDiscount: Math.round(itemsDiscount),
