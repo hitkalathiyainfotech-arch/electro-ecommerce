@@ -351,23 +351,21 @@ export const deleteCoupon = async (req, res) => {
             return sendBadRequestResponse(res, "Invalid Coupon ID!");
         }
 
-        const coupon = await CouponModel.findById(id);
+        const coupon = await CouponModel.findByIdAndDelete({ _id: id });
+
         if (!coupon) {
             return sendNotFoundResponse(res, "Coupon not found!");
         }
 
         if (coupon.couponImage) {
-            await deleteFileFromS3(coupon.couponImage);
+            const key = String(coupon.couponImage).split(".amazonaws.com/")[1];
+            await deleteFromS3(key);
         }
 
-        await CouponModel.findByIdAndDelete(id);
-
-        return sendSuccessResponse(res, "Coupon deleted successfully!", {
-            deletedId: id,
-        });
+        return sendSuccessResponse(res, "Coupon deleted successfully!", coupon);
     } catch (error) {
-        console.error("Error deleting coupon:", error);
-        return ThrowError(res, 500, error.message);
+        console.error("Error deleting coupon:", error.message);
+        return sendErrorResponse(res, 500, "Error deleting coupon", error);
     }
 };
 
