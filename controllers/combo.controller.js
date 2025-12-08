@@ -272,7 +272,7 @@ export const getProductSellerCombos = async (req, res) => {
         model: "productVariant"
       })
       .populate("createdBy", "firstName email avatar")
-      .lean();     // <---- lean goes AFTER all populates
+      .lean();
 
     return sendSuccessResponse(res, "Seller combos fetched for product", {
       total: combos.length,

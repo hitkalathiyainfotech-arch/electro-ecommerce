@@ -14,6 +14,7 @@ import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/w
 import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getSellerProducts, updateProduct } from '../controllers/product.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, getSellerProductVarient, updateProductVariant } from '../controllers/productVariant.controller.js';
 import comboController from '../controllers/combo.controller.js';
+import cartController from '../controllers/cart.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
 
 const indexRoutes = express.Router();
@@ -120,6 +121,17 @@ indexRoutes.post("/remove-coupon", UserAuth, removeCouponController);
 indexRoutes.post("/addToWishlist/:productId", UserAuth, addToWishlist)
 indexRoutes.get("/getWishlist", UserAuth, getWishlist)
 indexRoutes.delete("/removeFromWishlist/:productId", UserAuth, removeFromWishlist)
+
+
+
+// Cart endpoints
+indexRoutes.post("/cart/add", UserAuth, cartController.addToCart);
+indexRoutes.get("/myCart", UserAuth, cartController.getCart);
+indexRoutes.patch("/cart/update", UserAuth, cartController.updateCartItem);
+indexRoutes.delete("/cart/remove/:cartItemId", UserAuth, cartController.removeFromCart);
+indexRoutes.delete("/cart/clear", UserAuth, cartController.clearCart);
+indexRoutes.post("/cart/apply-combo/:comboId", UserAuth, cartController.applyComboToCart);
+indexRoutes.delete("/cart/remove-combo/:comboId", UserAuth, cartController.removeComboFromCart);
 
 
 
