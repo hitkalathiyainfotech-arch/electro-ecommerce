@@ -3,6 +3,7 @@ import Cart from "../models/cart.model.js";
 import Product from "../models/product.model.js";
 import ProductVariant from "../models/productVarient.model.js";
 import ComboOffer from "../models/combo.model.js";
+import Coupon from "../models/coupon.model.js";
 import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse, sendCreatedResponse } from "../utils/response.utils.js";
 
 // Add item to cart (product, variant, or combo)
@@ -362,6 +363,271 @@ const recalculateCart = (cart) => {
   cart.totalSavings = totalPrice - totalDiscountedPrice;
 };
 
+// Get Billing Preview with all details and summary
+export const cartBillingPreview = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+
+    const cart = await Cart.findOne({ userId })
+      .populate("items.product", "title productBanner sellerId")
+      .populate("items.variant", "variantTitle sku")
+      .populate("items.comboOffer", "title discountPrice")
+      .populate("appliedCombos.comboId", "title discountPrice")
+      .populate("appliedCoupon.couponId", "code discountType discountValue");
+
+    if (!cart || cart.items.length === 0) {
+      return sendSuccessResponse(res, "Cart is empty", {
+        items: [],
+        subtotal: 0,
+        comboDiscount: 0,
+        couponDiscount: 0,
+        gst: 0,
+        shippingCharges: 0,
+        finalTotal: 0,
+        summary: {}
+      });
+    }
+
+    // Calculate subtotal (before any discounts)
+    let subtotal = 0;
+    let itemsDiscount = 0;
+    let comboDiscount = 0;
+    let couponDiscount = 0;
+
+    // Items pricing
+    cart.items.forEach(item => {
+      subtotal += item.totalPrice;
+      itemsDiscount += item.totalPrice - item.totalDiscountedPrice;
+    });
+
+    // Combo discount
+    if (cart.appliedCombos && cart.appliedCombos.length > 0) {
+      cart.appliedCombos.forEach(combo => {
+        comboDiscount += combo.discountApplied || 0;
+      });
+    }
+
+    // Coupon discount
+    if (cart.appliedCoupon && cart.appliedCoupon.couponId) {
+      couponDiscount = cart.appliedCoupon.discountApplied || 0;
+    }
+
+    // Calculate total before tax
+    const totalBeforeTax = subtotal - itemsDiscount - comboDiscount - couponDiscount;
+
+    // GST Calculation (18%)
+    const gstAmount = Math.round(totalBeforeTax * 0.18);
+
+    // Shipping charges (can be dynamic based on location)
+    const shippingCharges = totalBeforeTax > 500 ? 0 : 50; // Free shipping above 500
+
+    // Final total
+    const finalTotal = totalBeforeTax + gstAmount + shippingCharges;
+
+    // Group items by seller
+    const itemsBySeller = {};
+    cart.items.forEach(item => {
+      const sellerId = item.sellerId.toString();
+      if (!itemsBySeller[sellerId]) {
+        itemsBySeller[sellerId] = [];
+      }
+      itemsBySeller[sellerId].push({
+        productId: item.product._id,
+        productTitle: item.product.title,
+        variant: item.variant?.variantTitle || "Default",
+        sku: item.variant?.sku || "N/A",
+        selectedColor: item.selectedColor,
+        selectedSize: item.selectedSize,
+        unitPrice: item.price,
+        quantity: item.quantity,
+        totalPrice: item.totalPrice,
+        discountedPrice: item.discountedPrice,
+        totalDiscountedPrice: item.totalDiscountedPrice,
+        itemDiscount: item.totalPrice - item.totalDiscountedPrice
+      });
+    });
+
+    // Build response
+    const billingPreview = {
+      userId,
+      cartItems: cart.items.length,
+      itemsBySeller,
+      
+      pricingSummary: {
+        subtotal: Math.round(subtotal),
+        itemDiscount: Math.round(itemsDiscount),
+        comboDiscount: Math.round(comboDiscount),
+        couponDiscount: Math.round(couponDiscount),
+        subtotalAfterDiscounts: Math.round(totalBeforeTax),
+        gst: gstAmount,
+        shippingCharges,
+        finalTotal: Math.round(finalTotal)
+      },
+
+      appliedOffers: {
+        combos: cart.appliedCombos.map(c => ({
+          comboId: c.comboId?._id,
+          comboTitle: c.comboId?.title,
+          discount: c.discountApplied
+        })) || [],
+        coupon: cart.appliedCoupon?.couponId ? {
+          couponId: cart.appliedCoupon.couponId._id,
+          code: cart.appliedCoupon.couponCode,
+          type: cart.appliedCoupon.discountType,
+          value: cart.appliedCoupon.discountValue,
+          discountApplied: cart.appliedCoupon.discountApplied
+        } : null
+      },
+
+      breakdown: {
+        "Subtotal": Math.round(subtotal),
+        "Item Discounts": Math.round(-itemsDiscount),
+        "Combo Discounts": Math.round(-comboDiscount),
+        "Coupon Discount": Math.round(-couponDiscount),
+        "GST (18%)": gstAmount,
+        "Shipping Charges": shippingCharges,
+        "Final Total": Math.round(finalTotal)
+      }
+    };
+
+    // Save billing details to cart
+    cart.subtotal = Math.round(subtotal);
+    cart.comboDiscount = Math.round(comboDiscount);
+    cart.couponDiscount = Math.round(couponDiscount);
+    cart.gst = gstAmount;
+    cart.shippingCharges = shippingCharges;
+    cart.finalTotal = Math.round(finalTotal);
+    await cart.save();
+
+    return sendSuccessResponse(res, "Billing preview generated", billingPreview);
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+// Apply coupon to cart
+export const applyCouponToCart = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const { couponCode } = req.body;
+
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+    if (!couponCode) return sendBadRequestResponse(res, "Coupon code required");
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart || cart.items.length === 0) {
+      return sendBadRequestResponse(res, "Cart is empty");
+    }
+
+    // Find coupon
+    const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() }).lean();
+    if (!coupon) return sendNotFoundResponse(res, "Coupon not found");
+
+    // Validate coupon
+    const now = new Date();
+    if (!coupon.isActive) return sendBadRequestResponse(res, "Coupon is not active");
+    if (coupon.endDate < now) return sendBadRequestResponse(res, "Coupon has expired");
+    if (coupon.startDate > now) return sendBadRequestResponse(res, "Coupon is not yet valid");
+
+    // Check usage limit
+    if (coupon.maxUsageLimit && coupon.usageCount >= coupon.maxUsageLimit) {
+      return sendBadRequestResponse(res, "Coupon usage limit exceeded");
+    }
+
+    // Check per-user limit
+    const userUsage = coupon.usedBy?.find(u => u.userId.toString() === userId.toString());
+    if (userUsage && userUsage.usedCount >= (coupon.perUserLimit || 1)) {
+      return sendBadRequestResponse(res, `You can use this coupon only ${coupon.perUserLimit} times`);
+    }
+
+    // Check minimum order value
+    const subtotal = cart.totalPrice;
+    if (coupon.minOrderValue && subtotal < coupon.minOrderValue) {
+      return sendBadRequestResponse(res, `Minimum order value ₹${coupon.minOrderValue} required`);
+    }
+
+    // Calculate discount
+    let discountAmount = 0;
+    if (coupon.discountType === "percentage") {
+      discountAmount = Math.round(subtotal * (coupon.percentageValue / 100));
+      // Cap discount to maxDiscountAmount if specified
+      if (coupon.maxDiscountAmount && discountAmount > coupon.maxDiscountAmount) {
+        discountAmount = coupon.maxDiscountAmount;
+      }
+    } else if (coupon.discountType === "flat") {
+      discountAmount = coupon.flatValue;
+    }
+
+    // Check if coupon already applied
+    if (cart.appliedCoupon?.couponId) {
+      return sendBadRequestResponse(res, "A coupon is already applied. Remove it first.");
+    }
+
+    // Apply coupon to cart
+    cart.appliedCoupon = {
+      couponId: coupon._id,
+      couponCode: coupon.code,
+      discountApplied: discountAmount,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountType === "percentage" ? coupon.percentageValue : coupon.flatValue,
+      appliedAt: now
+    };
+
+    // Update coupon usage in DB
+    await Coupon.findByIdAndUpdate(
+      coupon._id,
+      {
+        $inc: { usageCount: 1 },
+        $push: {
+          usedBy: {
+            userId,
+            usedCount: 1,
+            lastUsedAt: now
+          }
+        }
+      },
+      { new: true }
+    );
+
+    await cart.save();
+
+    const populatedCart = await Cart.findById(cart._id)
+      .populate("items.product", "title productBanner")
+      .populate("appliedCoupon.couponId", "code");
+
+    return sendSuccessResponse(res, "Coupon applied successfully", {
+      message: `Discount of ₹${discountAmount} applied`,
+      couponCode: coupon.code,
+      discountApplied: discountAmount,
+      cart: populatedCart
+    });
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+// Remove coupon from cart
+export const removeCouponFromCart = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+
+    const cart = await Cart.findOne({ userId });
+    if (!cart) return sendNotFoundResponse(res, "Cart not found");
+
+    if (!cart.appliedCoupon?.couponId) {
+      return sendBadRequestResponse(res, "No coupon applied to cart");
+    }
+
+    cart.appliedCoupon = {};
+    await cart.save();
+
+    return sendSuccessResponse(res, "Coupon removed from cart", cart);
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
 
 export default {
   addToCart,
@@ -370,5 +636,8 @@ export default {
   removeFromCart,
   clearCart,
   applyComboToCart,
-  removeComboFromCart
+  removeComboFromCart,
+  cartBillingPreview,
+  applyCouponToCart,
+  removeCouponFromCart
 };

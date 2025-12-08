@@ -132,7 +132,9 @@ indexRoutes.delete("/cart/remove/:cartItemId", UserAuth, cartController.removeFr
 indexRoutes.delete("/cart/clear", UserAuth, cartController.clearCart);
 indexRoutes.post("/cart/apply-combo/:comboId", UserAuth, cartController.applyComboToCart);
 indexRoutes.delete("/cart/remove-combo/:comboId", UserAuth, cartController.removeComboFromCart);
-
+indexRoutes.get("/billing/preview", UserAuth, cartController.cartBillingPreview);
+indexRoutes.post("/cart/apply-coupon", UserAuth, cartController.applyCouponToCart);
+indexRoutes.delete("/cart/remove-coupon", UserAuth, cartController.removeCouponFromCart);
 
 
 //aws

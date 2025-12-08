@@ -73,7 +73,28 @@ const cartSchema = new mongoose.Schema(
         },
         discountApplied: { type: Number, default: 0 }
       }
-    ]
+    ],
+
+    // Applied coupon
+    appliedCoupon: {
+      couponId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "coupon"
+      },
+      couponCode: { type: String },
+      discountApplied: { type: Number, default: 0 },
+      discountType: { type: String, enum: ["flat", "percentage"] },
+      discountValue: { type: Number },
+      appliedAt: { type: Date }
+    },
+
+    // Final billing
+    subtotal: { type: Number, default: 0 }, // before discount
+    comboDiscount: { type: Number, default: 0 },
+    couponDiscount: { type: Number, default: 0 },
+    gst: { type: Number, default: 0 }, // 18% GST
+    shippingCharges: { type: Number, default: 0 },
+    finalTotal: { type: Number, default: 0 } // after all discounts + GST + shipping
   },
   { timestamps: true }
 );
