@@ -5,11 +5,12 @@ import ProductVariant from "../models/productVarient.model.js";
 import ComboOffer from "../models/combo.model.js";
 import Coupon from "../models/coupon.model.js";
 import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/response.utils.js";
+import { getDeliveryInfo } from "../helper/deliveryDate.helper.js";
 
 export const addToCart = async (req, res) => {
   try {
     const userId = req.user?._id;
-    const { productId, variantId, comboId, quantity, selectedSize } = req.body;
+    const { productId, variantId, comboId, quantity, selectedSize, courierService } = req.body;
 
     if (!userId) return sendBadRequestResponse(res, "User ID required");
     if (!productId || !mongoose.Types.ObjectId.isValid(productId)) return sendBadRequestResponse(res, "Valid productId required");
@@ -105,7 +106,19 @@ export const addToCart = async (req, res) => {
       });
     }
 
-    recalculateCart(cart);
+    // Calculate and set courier delivery info
+    const selectedService = courierService || "regular";
+
+    if (!["regular", "standard"].includes(selectedService)) {
+      return sendBadRequestResponse(res, 'Courier service must be "regular" or "standard"');
+    }
+
+    const deliveryInfo = getDeliveryInfo(selectedService);
+
+    cart.courierService = selectedService;
+    cart.estimatedDeliveryDate = deliveryInfo.estimatedDeliveryDate;
+    // Set delivery charge based on service: regular=$10, standard=$12
+    cart.deliveryCharge = selectedService === "regular" ? 10 : 12; recalculateCart(cart);
     await cart.save();
 
     const populatedCart = await Cart.findById(cart._id)
@@ -145,7 +158,16 @@ export const getCart = async (req, res) => {
 
     recalculateCart(cart);
 
-    return sendSuccessResponse(res, "Cart fetched", cart);
+    const cartWithCourier = {
+      ...cart.toObject(),
+      courierInfo: {
+        service: cart.courierService,
+        estimatedDeliveryDate: cart.estimatedDeliveryDate,
+        deliveryCharge: cart.deliveryCharge
+      }
+    };
+
+    return sendSuccessResponse(res, "Cart fetched", cartWithCourier);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -258,12 +280,16 @@ export const applyComboToCart = async (req, res) => {
       return sendBadRequestResponse(res, "Combo already applied");
     }
 
+    let totalComboOriginalPrice = 0;
+    let totalComboDiscountedPrice = 0;
+
     for (const cp of combo.products) {
       const prod = cp.product;
       const variant = cp.variant;
       const comboQty = (cp.quantity || 1) * quantity;
 
       let basePrice = 0;
+      let discountedUnitPrice = 0;
       let stock = 1;
       let selectedColor = null;
       let selectedSize = null;
@@ -277,6 +303,7 @@ export const applyComboToCart = async (req, res) => {
           selectedSize = sizeObj.sizeValue;
           stock = sizeObj.stock || 0;
           basePrice = sizeObj.price ?? 0;
+          discountedUnitPrice = sizeObj.discountedPrice ?? basePrice;
 
           if (!stock || stock <= 0) {
             return sendBadRequestResponse(res, `Combo product ${prod.title} size ${selectedSize} is out of stock`);
@@ -287,6 +314,7 @@ export const applyComboToCart = async (req, res) => {
         } else {
           stock = colorObj.stock || 0;
           basePrice = colorObj.price ?? 0;
+          discountedUnitPrice = colorObj.discountedPrice ?? basePrice;
 
           if (!stock || stock <= 0) {
             return sendBadRequestResponse(res, `Combo product ${prod.title} is out of stock`);
@@ -297,6 +325,7 @@ export const applyComboToCart = async (req, res) => {
         }
       } else {
         basePrice = prod.price ?? prod.sellingPrice ?? 0;
+        discountedUnitPrice = prod.discountedPrice ?? basePrice;
         stock = prod.stock ?? 0;
 
         if (!stock || stock <= 0) {
@@ -307,7 +336,9 @@ export const applyComboToCart = async (req, res) => {
         }
       }
 
-      const unitPrice = cp.offerPrice || basePrice || 0;
+      // Track prices for discount calculation
+      totalComboOriginalPrice += basePrice * comboQty;
+      totalComboDiscountedPrice += discountedUnitPrice * comboQty;
 
       const existing = cart.items.find(i =>
         i.product.toString() === prod._id.toString() &&
@@ -327,11 +358,11 @@ export const applyComboToCart = async (req, res) => {
           comboOffer: comboId,
           selectedColor: selectedColor || null,
           selectedSize: selectedSize || null,
-          price: unitPrice,
-          discountedPrice: unitPrice,
+          price: basePrice,
+          discountedPrice: discountedUnitPrice,
           quantity: comboQty,
-          totalPrice: comboQty * unitPrice,
-          totalDiscountedPrice: comboQty * unitPrice,
+          totalPrice: comboQty * basePrice,
+          totalDiscountedPrice: comboQty * discountedUnitPrice,
           sellerId: prod.sellerId,
           stock,
           isComboItem: true
@@ -339,9 +370,13 @@ export const applyComboToCart = async (req, res) => {
       }
     }
 
-    const discountApplied = (combo.originalPrice || 0) - (combo.discountPrice || 0);
+    // Calculate combo discount: apply percentage discount to the total original price of combo items
+    const discountApplied = Math.round(totalComboOriginalPrice * (combo.discountPercentage / 100));
 
-    cart.appliedCombos.push({ comboId, discountApplied });
+    cart.appliedCombos.push({
+      comboId,
+      discountApplied
+    });
 
     recalculateCart(cart);
     await cart.save();
@@ -349,7 +384,7 @@ export const applyComboToCart = async (req, res) => {
     const populatedCart = await Cart.findById(cart._id)
       .populate("items.product", "title productBanner")
       .populate("items.variant", "-overview -key_features -specification")
-      .populate("appliedCombos.comboId", "title discountPrice");
+      .populate("appliedCombos.comboId", "title discountPercentage");
 
     return sendSuccessResponse(res, "Combo applied successfully", populatedCart);
   } catch (error) {
@@ -389,20 +424,49 @@ export const removeComboFromCart = async (req, res) => {
 
 const recalculateCart = (cart) => {
   let totalItems = 0;
-  let totalPrice = 0;
-  let totalDiscountedPrice = 0;
+  let totalOriginal = 0;
+  let totalDiscounted = 0;
 
   cart.items.forEach(i => {
     totalItems += i.quantity;
-    totalPrice += i.totalPrice;
-    totalDiscountedPrice += i.totalDiscountedPrice;
+    totalOriginal += i.price * i.quantity;
+    totalDiscounted += (i.discountedPrice || i.price) * i.quantity;
   });
 
   cart.totalItems = totalItems;
-  cart.totalPrice = totalPrice;
-  cart.totalDiscountedPrice = totalDiscountedPrice;
-  cart.totalSavings = totalPrice - totalDiscountedPrice;
+  cart.totalPrice = totalOriginal;
+  cart.totalDiscountedPrice = totalDiscounted;
+  cart.totalSavings = totalOriginal - totalDiscounted;
+
+  let comboDiscount = 0;
+  if (Array.isArray(cart.appliedCombos)) {
+    cart.appliedCombos.forEach(c => {
+      if (c.comboId && c.comboId.discountPercentage) {
+        comboDiscount += Math.round((totalDiscounted * c.comboId.discountPercentage) / 100);
+      }
+    });
+  }
+
+  cart.comboDiscount = comboDiscount;
+
+  let couponDiscount = 0;
+  if (cart.appliedCoupon && cart.appliedCoupon.discountApplied) {
+    couponDiscount = cart.appliedCoupon.discountApplied;
+  }
+  cart.couponDiscount = couponDiscount;
+
+  const afterAllDiscounts = totalDiscounted - comboDiscount - couponDiscount;
+  const gst = Math.round(afterAllDiscounts * 0.18);
+  cart.gst = gst;
+
+  const delivery = cart.deliveryCharge || 0;
+
+  const subtotal = afterAllDiscounts + gst + delivery;
+  cart.subtotal = subtotal;
+
+  cart.finalTotal = subtotal;
 };
+
 
 // Get Billing Preview with all details and summary
 export const cartBillingPreview = async (req, res) => {
@@ -413,8 +477,8 @@ export const cartBillingPreview = async (req, res) => {
     const cart = await Cart.findOne({ userId })
       .populate("items.product", "title productBanner sellerId")
       .populate("items.variant", "variantTitle sku")
-      .populate("items.comboOffer", "title discountPrice")
-      .populate("appliedCombos.comboId", "title discountPrice")
+      .populate("items.comboOffer", "title discountPercentage calculatedDiscountedPrice")
+      .populate("appliedCombos.comboId", "title discountPercentage calculatedDiscountedPrice calculatedOriginalPrice")
       .populate("appliedCoupon.couponId", "code discountType discountValue");
 
     if (!cart || cart.items.length === 0) {
@@ -436,13 +500,13 @@ export const cartBillingPreview = async (req, res) => {
     let comboDiscount = 0;
     let couponDiscount = 0;
 
-    // Items pricing
+    // Items pricing - use the actual discounted prices already applied to items
     cart.items.forEach(item => {
-      subtotal += item.totalPrice;
+      subtotal += item.totalDiscountedPrice; // Already includes item-level discounts
       itemsDiscount += item.totalPrice - item.totalDiscountedPrice;
     });
 
-    // Combo discount
+    // Combo discount - applied on top of item discounts
     if (cart.appliedCombos && cart.appliedCombos.length > 0) {
       cart.appliedCombos.forEach(combo => {
         comboDiscount += combo.discountApplied || 0;
@@ -454,14 +518,14 @@ export const cartBillingPreview = async (req, res) => {
       couponDiscount = cart.appliedCoupon.discountApplied || 0;
     }
 
-    // Calculate total before tax
-    const totalBeforeTax = subtotal - itemsDiscount - comboDiscount - couponDiscount;
+    // Calculate total before tax: items (after item discounts) - combo discount - coupon discount
+    const totalBeforeTax = Math.max(0, subtotal - comboDiscount - couponDiscount);
 
     // GST Calculation (18%)
     const gstAmount = Math.round(totalBeforeTax * 0.18);
 
-    // Shipping charges (can be dynamic based on location)
-    const shippingCharges = totalBeforeTax > 500 ? 0 : 50; // Free shipping above 500
+    // Shipping charges - based on delivery charge in cart or default
+    const shippingCharges = cart.deliveryCharge || 0;
 
     // Final total
     const finalTotal = totalBeforeTax + gstAmount + shippingCharges;

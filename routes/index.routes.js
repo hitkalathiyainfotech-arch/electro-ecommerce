@@ -15,6 +15,8 @@ import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getP
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, getSellerProductVarient, updateProductVariant } from '../controllers/productVariant.controller.js';
 import comboController from '../controllers/combo.controller.js';
 import cartController from '../controllers/cart.controller.js';
+import orderController from '../controllers/order.controller.js';
+import paymentController from '../controllers/payment.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
 
 const indexRoutes = express.Router();
@@ -135,6 +137,27 @@ indexRoutes.delete("/cart/remove-combo/:comboId", UserAuth, cartController.remov
 indexRoutes.get("/billing/preview", UserAuth, cartController.cartBillingPreview);
 indexRoutes.post("/cart/apply-coupon", UserAuth, cartController.applyCouponToCart);
 indexRoutes.delete("/cart/remove-coupon", UserAuth, cartController.removeCouponFromCart);
+
+
+// Order endpoints
+indexRoutes.post("/order/create", UserAuth, orderController.createOrder);
+indexRoutes.get("/order/my-orders", UserAuth, orderController.getUserOrders);
+indexRoutes.get("/order/:orderId", UserAuth, orderController.getOrderById);
+indexRoutes.get("/order/details/:id", orderController.getOrderByMongoId);
+indexRoutes.patch("/order/:orderId/status", sellerAndAdminAuth, orderController.updateOrderStatus);
+indexRoutes.post("/order/:orderId/cancel", UserAuth, orderController.cancelOrder);
+indexRoutes.post("/order/:orderId/return", UserAuth, orderController.returnOrder);
+indexRoutes.get("/order/admin/all-orders", adminAuth, orderController.getAllOrders);
+indexRoutes.patch("/order/:orderId/item/:itemId/status", orderController.updateOrderItemStatus);
+
+// Payment endpoints (Razorpay)
+indexRoutes.post("/payment/:orderId/initiate", UserAuth, paymentController.initiatePayment);
+indexRoutes.post("/payment/:orderId/initiate-emi", UserAuth, paymentController.initiateEMIPayment);
+indexRoutes.post("/payment/:orderId/verify", UserAuth, paymentController.verifyPayment);
+indexRoutes.get("/payment/:orderId/status", UserAuth, paymentController.getPaymentStatus);
+indexRoutes.post("/payment/:orderId/refund", UserAuth, paymentController.processRefund);
+indexRoutes.post("/payment/webhook", paymentController.handleRazorpayWebhook);
+indexRoutes.post("/payment/:orderId/verify-emi", UserAuth, paymentController.verifyEMIPayment);
 
 
 //aws

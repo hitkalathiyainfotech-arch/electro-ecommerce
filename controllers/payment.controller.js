@@ -1,0 +1,440 @@
+import Order from "../models/order.model.js";
+import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/response.utils.js";
+import {
+  createRazorpayOrder,
+  createRazorpayEMIOrder,
+  verifyRazorpaySignature,
+  getRazorpayPaymentDetails,
+  refundRazorpayPayment,
+  calculateEMI,
+  EMI_TENURES
+} from "../utils/razorpay.config.js";
+import crypto from 'crypto';
+
+/**
+ * Initiate Razorpay Payment
+ * POST /payment/initiate
+ */
+export const initiatePayment = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
+
+    // Get order details
+    const order = await Order.findOne({ orderId, userId });
+    if (!order) return sendNotFoundResponse(res, "Order not found");
+
+    // Check if payment already completed
+    if (order.paymentInfo.status === "completed") {
+      return sendBadRequestResponse(res, "Payment already completed for this order");
+    }
+
+    // Check payment method
+    if (order.paymentInfo.method !== "razorpay") {
+      return sendBadRequestResponse(res, "This order is not for Razorpay payment");
+    }
+
+    // Create Razorpay order
+    const razorpayOrder = await createRazorpayOrder(
+      order.priceSummary.finalTotal,
+      orderId
+    );
+
+    // Update order with Razorpay order ID
+    order.paymentInfo.razorpayOrderId = razorpayOrder.id;
+    await order.save();
+
+    return sendSuccessResponse(res, "Payment order created", {
+      orderId: orderId,
+      razorpayOrderId: razorpayOrder.id,
+      amount: order.priceSummary.finalTotal,
+      currency: razorpayOrder.currency,
+      key: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * Initiate EMI Payment
+ * POST /payment/initiate-emi
+ */
+export const initiateEMIPayment = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { tenure } = req.body;
+    const userId = req.user?._id;
+
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
+    if (!tenure) return sendBadRequestResponse(res, "Tenure required");
+
+    // Validate tenure
+    if (!EMI_TENURES.includes(tenure)) {
+      return sendBadRequestResponse(res, `Invalid tenure. Allowed: ${EMI_TENURES.join(", ")}`);
+    }
+
+    // Get order details
+    const order = await Order.findOne({ orderId, userId });
+    if (!order) return sendNotFoundResponse(res, "Order not found");
+
+    // Check if payment already completed
+    if (order.paymentInfo.status === "completed") {
+      return sendBadRequestResponse(res, "Payment already completed for this order");
+    }
+
+    // Check payment method
+    if (order.paymentInfo.method !== "razorpay") {
+      return sendBadRequestResponse(res, "This order is not for Razorpay payment");
+    }
+
+    // Create EMI order
+    const { order: razorpayOrder, emiDetails } = await createRazorpayEMIOrder(
+      order.priceSummary.finalTotal,
+      orderId,
+      tenure
+    );
+
+    // Update order with EMI info
+    order.paymentInfo.razorpayOrderId = razorpayOrder.id;
+    order.emiInfo.enabled = true;
+    order.emiInfo.tenure = tenure;
+    order.emiInfo.monthlyAmount = emiDetails.monthlyAmount;
+    order.emiInfo.totalEMIAmount = emiDetails.totalAmount;
+    order.emiInfo.interestRate = emiDetails.interestRate;
+
+    // Create installment plans
+    const nextPaymentDate = new Date();
+    order.emiInfo.installments = Array.from({ length: tenure }, (_, i) => {
+      const dueDate = new Date();
+      dueDate.setMonth(dueDate.getMonth() + (i + 1));
+      return {
+        installmentNo: i + 1,
+        amount: emiDetails.monthlyAmount,
+        dueDate,
+        status: i === 0 ? "pending" : "pending" // First installment is immediate
+      };
+    });
+
+    order.emiInfo.nextPaymentDate = order.emiInfo.installments[0].dueDate;
+
+    await order.save();
+
+    return sendSuccessResponse(res, "EMI payment order created", {
+      orderId: orderId,
+      razorpayOrderId: razorpayOrder.id,
+      totalAmount: order.priceSummary.finalTotal,
+      emiDetails: {
+        tenure,
+        monthlyAmount: emiDetails.monthlyAmount,
+        totalAmount: emiDetails.totalAmount,
+        interestRate: emiDetails.interestRate
+      },
+      currency: razorpayOrder.currency,
+      key: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * Verify Payment Signature and Complete Payment
+ * POST /payment/verify
+ */
+export const verifyPayment = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const userId = req.user?._id;
+
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return sendBadRequestResponse(res, "Payment details missing");
+    }
+
+    const order = await Order.findOne({ orderId, userId });
+    if (!order) return sendNotFoundResponse(res, "Order not found");
+
+    const isSignatureValid = verifyRazorpaySignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature
+    );
+
+    if (!isSignatureValid) {
+      return sendBadRequestResponse(res, "Invalid payment signature. Payment verification failed.");
+    }
+
+    const paymentDetails = await getRazorpayPaymentDetails(razorpay_payment_id);
+
+    order.paymentInfo.status = "completed";
+    order.paymentInfo.razorpayPaymentId = razorpay_payment_id;
+    order.paymentInfo.razorpaySignature = razorpay_signature;
+    order.paymentInfo.paymentDate = new Date();
+    order.timeline.paymentCompleted = new Date();
+
+    if (order.orderStatus.current === "pending") {
+      order.orderStatus.current = "confirmed";
+      order.orderStatus.history.push({
+        status: "confirmed",
+        timestamp: new Date(),
+        notes: "Order confirmed after payment completed"
+      });
+      order.timeline.orderConfirmed = new Date();
+    }
+
+    if (order.emiInfo.enabled && order.emiInfo.installments.length > 0) {
+      order.emiInfo.installments[0].paidDate = new Date();
+      order.emiInfo.installments[0].status = "paid";
+      order.emiInfo.installments[0].razorpayPaymentId = razorpay_payment_id;
+      order.emiInfo.paidInstallments = 1;
+      order.emiInfo.emiStatus = "active";
+    }
+
+    order.lastUpdated = new Date();
+    await order.save();
+
+    return sendSuccessResponse(res, "Payment verified and order confirmed", {
+      orderId: order.orderId,
+      paymentStatus: order.paymentInfo.status,
+      orderStatus: order.orderStatus.current,
+      transactionId: razorpay_payment_id
+    });
+
+  } catch (error) {
+    console.error("verifyPayment Error:", error);
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * Get Payment Status
+ * GET /payment/:orderId/status
+ */
+export const getPaymentStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
+
+    const order = await Order.findOne({ orderId, userId }).select(
+      "orderId paymentInfo emiInfo"
+    );
+
+    if (!order) return sendNotFoundResponse(res, "Order not found");
+
+    const response = {
+      orderId: order.orderId,
+      paymentStatus: order.paymentInfo.status,
+      method: order.paymentInfo.method,
+      transactionId: order.paymentInfo.razorpayPaymentId,
+      paymentDate: order.paymentInfo.paymentDate
+    };
+
+    if (order.emiInfo.enabled) {
+      response.emiStatus = {
+        enabled: true,
+        tenure: order.emiInfo.tenure,
+        monthlyAmount: order.emiInfo.monthlyAmount,
+        status: order.emiInfo.emiStatus,
+        paidInstallments: order.emiInfo.paidInstallments,
+        totalInstallments: order.emiInfo.tenure,
+        nextPaymentDate: order.emiInfo.nextPaymentDate
+      };
+    }
+
+    return sendSuccessResponse(res, "Payment status", response);
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * Process Refund
+ * POST /payment/:orderId/refund
+ */
+export const processRefund = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { amount, reason } = req.body;
+    const userId = req.user?._id;
+
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
+
+    const order = await Order.findOne({ orderId, userId });
+    if (!order) return sendNotFoundResponse(res, "Order not found");
+
+    // Check if payment was made with Razorpay
+    if (order.paymentInfo.method !== "razorpay" || !order.paymentInfo.razorpayPaymentId) {
+      return sendBadRequestResponse(res, "No Razorpay payment to refund");
+    }
+
+    // Check if payment was completed
+    if (order.paymentInfo.status !== "completed") {
+      return sendBadRequestResponse(res, "Cannot refund incomplete payment");
+    }
+
+    // Determine refund amount
+    const refundAmount = amount ? Number(amount) : order.paymentInfo.amountPaid || order.priceSummary.finalTotal;
+
+    if (refundAmount <= 0) {
+      return sendBadRequestResponse(res, "Refund amount must be greater than zero");
+    }
+
+    // Process refund
+    const refund = await refundRazorpayPayment(
+      order.paymentInfo.razorpayPaymentId,
+      refundAmount
+    );
+
+    // Update order
+    order.paymentInfo.status = "refunded";
+    order.paymentInfo.refundAmount = refundAmount;
+    order.paymentInfo.refundDate = new Date();
+    order.lastUpdated = new Date();
+
+    await order.save();
+
+    return sendSuccessResponse(res, "Refund processed successfully", {
+      orderId: order.orderId,
+      refundId: refund.id,
+      amount: refundAmount,
+      status: refund.status,
+      notes: reason || "Full or partial refund processed"
+    });
+
+  } catch (error) {
+    console.log(error)
+    return sendErrorResponse(res, 500, "error while processRefund", error);
+  }
+};
+
+/**
+ * Razorpay Webhook Handler
+ * POST /payment/webhook
+ */
+export const handleRazorpayWebhook = async (req, res) => {
+  try {
+    const { event, payload } = req.body;
+
+    // Verify webhook signature
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
+      .update(JSON.stringify(req.body))
+      .digest("hex");
+
+    if (req.headers["x-razorpay-signature"] !== expectedSignature) {
+      return sendBadRequestResponse(res, "Invalid webhook signature");
+    }
+
+    // Handle different webhook events
+    switch (event) {
+      case "payment.authorized":
+      case "payment.failed":
+      case "payment.captured":
+        // Handle payment events
+        const orderId = payload.payment?.notes?.orderId;
+        if (orderId) {
+          const order = await Order.findOne({ orderId });
+          if (order) {
+            // Update order based on event
+            if (event === "payment.captured") {
+              order.paymentInfo.status = "completed";
+            } else if (event === "payment.failed") {
+              order.paymentInfo.status = "failed";
+            }
+            order.lastUpdated = new Date();
+            await order.save();
+          }
+        }
+        break;
+
+      case "refund.created":
+      case "refund.failed":
+        // Handle refund events
+        break;
+
+      default:
+        break;
+    }
+
+    return sendSuccessResponse(res, "Webhook processed");
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+// controllers/paymentController.js
+export const verifyEMIPayment = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+    const userId = req.user?._id;
+
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      return sendBadRequestResponse(res, "Invalid payment data");
+    }
+
+    const order = await Order.findOne({ orderId, userId });
+    if (!order) return sendNotFoundResponse(res, "Order not found");
+
+    if (!order.emiInfo || !order.emiInfo.enabled) {
+      return sendBadRequestResponse(res, "This order is not an EMI order");
+    }
+
+    const generatedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .digest("hex");
+
+    if (generatedSignature !== razorpay_signature) {
+      return sendBadRequestResponse(res, "Payment verification failed");
+    }
+
+    // Mark first EMI installment as paid
+    const installment = order.emiInfo.installments.find(i => i.status === "pending");
+    if (installment) installment.status = "paid";
+
+    // Update next payment date
+    const nextInstallment = order.emiInfo.installments.find(i => i.status === "pending");
+    order.emiInfo.nextPaymentDate = nextInstallment ? nextInstallment.dueDate : null;
+
+    // Update overall payment status if all installments paid
+    const allPaid = order.emiInfo.installments.every(i => i.status === "paid");
+    if (allPaid) order.paymentInfo.status = "completed";
+
+    await order.save();
+
+    return sendSuccessResponse(res, "EMI payment verified successfully", {
+      orderId,
+      paymentId: razorpay_payment_id,
+      installmentPaid: installment ? installment.installmentNo : null,
+      nextPaymentDate: order.emiInfo.nextPaymentDate,
+      paymentStatus: order.paymentInfo.status
+    });
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+
+export default {
+  initiatePayment,
+  initiateEMIPayment,
+  verifyPayment,
+  getPaymentStatus,
+  processRefund,
+  handleRazorpayWebhook,
+  verifyEMIPayment
+};

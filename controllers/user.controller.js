@@ -725,9 +725,33 @@ export const selectUserAddress = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const { _id: id } = req.user;
-    const user = await userModel.findOne({ _id: id })
+    const user = await userModel.findOne({ _id: id });
 
-    return sendSuccessResponse(res, `${user.fullName} profile Featched SuccessFully`, user);
+    if (!user) {
+      return sendNotFoundResponse(res, "User not found");
+    }
+
+    // Find the selected address full details
+    const selectedAddressId = user.selectedAddress;
+    const selectedAddressDetails = user.addresses?.find(addr => addr._id.toString() === selectedAddressId?.toString());
+
+    // Build response with selected address details
+    const userProfile = {
+      _id: user._id,
+      fullName: user.fullName,
+      phone: user.phone,
+      email: user.email,
+      country: user.country,
+      avatar: user.avatar,
+      isSocialLogin: user.isSocialLogin,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      addresses: user.addresses || [],
+      selectedAddress: selectedAddressDetails || null,
+      selectedAddressId: selectedAddressId || null
+    };
+
+    return sendSuccessResponse(res, `${user.fullName} profile Fetched Successfully`, userProfile);
   } catch (error) {
     console.log("Error while get User Profile : " + error.message);
     return sendErrorResponse(res, 500, "Error while Get User Profile " + error.message);

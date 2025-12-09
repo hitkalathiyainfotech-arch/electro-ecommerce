@@ -12,9 +12,8 @@ const comboProductSchema = new mongoose.Schema(
       ref: "productVariant",
       required: false
     },
-    quantity: { type: Number, default: 1 },
-    // offerPrice is the price for this product inside the combo (optional)
-    offerPrice: { type: Number }
+    quantity: { type: Number, default: 1 }
+    // NOTE: offerPrice is REMOVED - prices are fetched automatically from product/variant
   }
 );
 
@@ -26,8 +25,12 @@ const comboOfferSchema = new mongoose.Schema(
       type: [comboProductSchema],
       validate: [(v) => Array.isArray(v) && v.length > 0, "At least one product required"]
     },
-    originalPrice: { type: Number, required: true },
-    discountPrice: { type: Number, required: true },
+    // Combo discount percentage (applied to total)
+    discountPercentage: { type: Number, required: true, min: 0, max: 100 },
+
+    // Calculated fields (will be computed when fetching)
+    calculatedOriginalPrice: { type: Number, default: 0 },
+    calculatedDiscountedPrice: { type: Number, default: 0 },
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

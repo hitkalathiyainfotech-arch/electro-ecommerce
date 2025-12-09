@@ -6,10 +6,14 @@ import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSu
 export const createCombo = async (req, res) => {
   try {
     const sellerId = req.user?._id;
-    const { title, description, products, originalPrice, discountPrice } = req.body;
+    const { title, description, products, discountPercentage } = req.body;
 
-    if (!title || !products || !originalPrice || !discountPrice) {
-      return sendBadRequestResponse(res, "title, products, originalPrice and discountPrice are required");
+    if (!title || !products || discountPercentage === undefined) {
+      return sendBadRequestResponse(res, "title, products, and discountPercentage are required");
+    }
+
+    if (discountPercentage < 0 || discountPercentage > 100) {
+      return sendBadRequestResponse(res, "discountPercentage must be between 0 and 100");
     }
 
     let parsedProducts = products;
@@ -36,19 +40,62 @@ export const createCombo = async (req, res) => {
       return sendNotFoundResponse(res, "Some products not found");
     }
 
-
     // if seller created, ensure ownership
     if (req.user?.role === "seller") {
       const notOwned = foundProducts.filter(p => p.sellerId.toString() !== sellerId.toString());
       if (notOwned.length > 0) return sendBadRequestResponse(res, "You can only add your own products to a combo");
     }
 
+    // Calculate original and discounted prices based on variants if available
+    let totalOriginalPrice = 0;
+    const ProductVariant = mongoose.model("productVariant");
+
+    for (const comboProduct of parsedProducts) {
+      const product = foundProducts.find(p => p._id.toString() === comboProduct.product.toString());
+      if (!product) continue;
+
+      const qty = comboProduct.quantity || 1;
+      let productPrice = 0;
+
+      // Get price from variant if variant exists
+      if (comboProduct.variant) {
+        try {
+          const variant = await ProductVariant.findById(comboProduct.variant).lean();
+          if (variant && variant.color) {
+            // If variant has sizes, use first available size's price
+            if (Array.isArray(variant.color.sizes) && variant.color.sizes.length > 0) {
+              const availableSize = variant.color.sizes.find(s => s.stock > 0);
+              productPrice = availableSize?.price || variant.color.sizes[0].price || 0;
+            } else {
+              // Use color price if no sizes
+              productPrice = variant.color.price || 0;
+            }
+          }
+        } catch (e) {
+          // Fallback to product price
+          productPrice = product.price || product.sellingPrice || 0;
+        }
+      } else {
+        // Use product price
+        productPrice = product.price || product.sellingPrice || 0;
+      }
+
+      totalOriginalPrice += productPrice * qty;
+    }
+
+    const totalDiscountedPrice = Math.round(totalOriginalPrice * (1 - discountPercentage / 100));
+
     const comboData = {
       title,
       description: description || "",
-      products: parsedProducts,
-      originalPrice,
-      discountPrice,
+      products: parsedProducts.map(p => ({
+        product: p.product,
+        variant: p.variant || null,
+        quantity: p.quantity || 1
+      })),
+      discountPercentage,
+      calculatedOriginalPrice: totalOriginalPrice,
+      calculatedDiscountedPrice: totalDiscountedPrice,
       createdBy: sellerId
     };
 
@@ -229,12 +276,14 @@ export const applyCombo = async (req, res) => {
 
     if (!combo.isActive) return sendBadRequestResponse(res, "Combo is not active");
 
+    const saving = combo.calculatedOriginalPrice - combo.calculatedDiscountedPrice;
     const result = {
       comboId: combo._id,
       title: combo.title,
-      originalPrice: combo.originalPrice,
-      discountPrice: combo.discountPrice,
-      saving: combo.originalPrice - combo.discountPrice
+      discountPercentage: combo.discountPercentage,
+      calculatedOriginalPrice: combo.calculatedOriginalPrice,
+      calculatedDiscountedPrice: combo.calculatedDiscountedPrice,
+      saving: saving
     };
 
     return sendSuccessResponse(res, "Combo applied", result);

@@ -88,6 +88,15 @@ const cartSchema = new mongoose.Schema(
       appliedAt: { type: Date }
     },
 
+    // Courier Service Selection
+    courierService: {
+      type: String,
+      enum: ["regular", "standard"],
+      default: "regular"
+    },
+    estimatedDeliveryDate: { type: Date },
+    deliveryCharge: { type: Number, default: 12 },
+
     // Final billing
     subtotal: { type: Number, default: 0 }, // before discount
     comboDiscount: { type: Number, default: 0 },
