@@ -10,6 +10,8 @@ import {
   EMI_TENURES
 } from "../utils/razorpay.config.js";
 import crypto from 'crypto';
+import mongoose from "mongoose";
+import productModel from "../models/product.model.js";
 
 /**
  * Initiate Razorpay Payment
@@ -168,10 +170,10 @@ export const verifyPayment = async (req, res) => {
     );
 
     if (!isSignatureValid) {
-      return sendBadRequestResponse(res, "Invalid payment signature. Payment verification failed.");
+      return sendBadRequestResponse(res, "Invalid payment signature");
     }
 
-    const paymentDetails = await getRazorpayPaymentDetails(razorpay_payment_id);
+    const paymentInfo = await getRazorpayPaymentDetails(razorpay_payment_id);
 
     order.paymentInfo.status = "completed";
     order.paymentInfo.razorpayPaymentId = razorpay_payment_id;
@@ -200,18 +202,36 @@ export const verifyPayment = async (req, res) => {
     order.lastUpdated = new Date();
     await order.save();
 
+    if (order.paymentInfo.status === "completed") {
+      try {
+        for (const item of order.items) {
+          await productModel.findByIdAndUpdate(
+            item.product,
+            { $inc: { sold: item.quantity || 1 } },
+            { new: true }
+          );
+        }
+
+        console.log("Product sold incremented");
+      } catch (error) {
+        console.log("Error while incrementing sold", error);
+      }
+    }
+
+
     return sendSuccessResponse(res, "Payment verified and order confirmed", {
       orderId: order.orderId,
       paymentStatus: order.paymentInfo.status,
       orderStatus: order.orderStatus.current,
-      transactionId: razorpay_payment_id
+      transactionId: razorpay_payment_id,
+      paymentInfo
     });
 
   } catch (error) {
-    console.error("verifyPayment Error:", error);
     return sendErrorResponse(res, 500, error.message);
   }
 };
+
 
 /**
  * Get Payment Status

@@ -3,6 +3,7 @@ import brandModel from "../models/brand.model.js";
 import { sendErrorResponse, sendForbiddenResponse, sendBadRequestResponse, sendSuccessResponse } from "../utils/response.utils.js";
 import { deleteFromS3, uploadToS3 } from "../utils/s3Service.js";
 import sellerModel from '../models/seller.model.js'
+import productModel from "../models/product.model.js";
 
 export const createBrand = async (req, res) => {
   try {
@@ -225,3 +226,26 @@ export const searchBrand = async (req, res) => {
     return sendErrorResponse(res, 500, "Error while searching brand", error.message);
   }
 };
+
+
+export const getProductsByBrandId = async (req, res) => {
+  try {
+    const { id } = req.params
+    const products = await productModel.find({
+      brand: id
+    })
+      .populate("sellerId", "firstName email mobileNo avatar")
+      .populate("brand", "brandName brandImage")
+      .populate("categories", "name image")
+      .populate("variantId")
+
+
+    return sendSuccessResponse(res, `Product fetached related barnd ${id}`, {
+      total: products.length,
+      products
+    })
+  } catch (error) {
+    console.log("Error Whle getProductsByBrandId", error);
+    return sendErrorResponse(res, 500, "Error while getProductsByBrandId", error)
+  }
+}

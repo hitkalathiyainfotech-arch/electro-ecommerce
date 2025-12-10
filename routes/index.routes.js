@@ -9,15 +9,17 @@ import comboModel from '../models/combo.model.js';
 import { deleteFromS3, deleteManyFromS3, listBucketObjects, updateS3, uploadToS3 } from '../utils/s3Service.js';
 import { upload } from '../helper/imageUplode.js';
 import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
-import { createBrand, deleteBrand, getAllBrands, getBrandsById, getSellerBrands, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
+import { createBrand, deleteBrand, getAllBrands, getBrandsById, getProductsByBrandId, getSellerBrands, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/wishlist.controller.js';
-import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getSellerProducts, updateProduct } from '../controllers/product.controller.js';
+import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getProductVraintByproductId, getSellerProducts, getVraintSizesByColorName, updateProduct } from '../controllers/product.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, getSellerProductVarient, updateProductVariant } from '../controllers/productVariant.controller.js';
 import comboController from '../controllers/combo.controller.js';
 import cartController from '../controllers/cart.controller.js';
 import orderController from '../controllers/order.controller.js';
 import paymentController from '../controllers/payment.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
+import { createHeroBanner, deleteBanner, getAllBanners, updateBanner } from '../controllers/banner.controller.js';
+import { bestSeller, grabNowDeals, newArrival, trendingDeals } from '../controllers/home.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -77,6 +79,7 @@ indexRoutes.get("/getBrandsById/:id", getBrandsById)
 indexRoutes.put("/updateBrandById/:id", sellerAndAdminAuth, upload.single("brandImage"), updateBrandById)
 indexRoutes.delete("/deleteBrand/:id", sellerAndAdminAuth, deleteBrand)
 indexRoutes.get("/searchBrand", searchBrand)
+indexRoutes.get("/getProductsByBrandId/:id", getProductsByBrandId)
 
 //product
 indexRoutes.post("/createProduct", sellerAndAdminAuth, upload.array("productBanner", 10), createProduct);
@@ -88,7 +91,6 @@ indexRoutes.delete("/deleteProduct/:id", sellerAndAdminAuth, deleteProduct)
 indexRoutes.get("/getProductByCategory/:categoryId", getProductByCategory)
 indexRoutes.get("/getProductsByBrand/:brandId", getProductsByBrand)
 
-
 //productVarient
 indexRoutes.post("/createProductVariant", sellerAndAdminAuth, upload.array("images", 10), createProductVariant);
 indexRoutes.get("/getAllProductVariant", getAllProductVariant);
@@ -97,7 +99,8 @@ indexRoutes.get("/getProductVarientById/:id", getProductVarientById);
 indexRoutes.patch("/updateProductVariant/:variantId", sellerAndAdminAuth, upload.array("images", 10), updateProductVariant);
 indexRoutes.delete("/deleteProductVariant/:variantId", sellerAndAdminAuth, deleteProductVariant);
 indexRoutes.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
-
+indexRoutes.get("/getProductVraintByproductId/:id", getProductVraintByproductId) // controoller prodct controller ma chhe 
+indexRoutes.get("/getVraintSizesByColorName/:id", getVraintSizesByColorName) // controoller prodct controller ma chhe 
 // Combo endpoints (integrated into main router)
 indexRoutes.post("/combo/create", sellerAndAdminAuth, comboController.createCombo);
 indexRoutes.get("/getAllCombos", comboController.getAllCombos);
@@ -160,6 +163,16 @@ indexRoutes.post("/payment/webhook", paymentController.handleRazorpayWebhook);
 indexRoutes.post("/payment/:orderId/verify-emi", UserAuth, paymentController.verifyEMIPayment);
 
 
+//home page api's
+indexRoutes.post("/heroBanner", adminAuth, upload.array("banners"), createHeroBanner)
+indexRoutes.get("/getAllBanner", getAllBanners)
+indexRoutes.patch("/updateBanner/:id", adminAuth, upload.array("banners"), updateBanner)
+indexRoutes.delete("/deleteBanner/:id", adminAuth, deleteBanner)
+
+indexRoutes.get("/newArrival", newArrival)
+indexRoutes.get("/bestSellers", bestSeller)
+indexRoutes.get("/trending-deals", trendingDeals)
+indexRoutes.get("/grabNowDeals", grabNowDeals) // sugeestion based on varints
 //aws
 indexRoutes.get("/list", async (req, res) => {
   try {
