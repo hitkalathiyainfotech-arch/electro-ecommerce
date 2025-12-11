@@ -3,7 +3,7 @@ import Product from '../models/product.model.js';
 import ProductVariant from '../models/productVarient.model.js';
 import mongoose from 'mongoose';
 import { ThrowError } from '../utils/Error.utils.js';
-import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from '../utils/Response.utils.js';
+import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from '../utils/response.utils.js';
 
 const updateProductRating = async (productId) => {
     try {
