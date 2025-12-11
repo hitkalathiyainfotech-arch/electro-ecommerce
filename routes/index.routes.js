@@ -2,7 +2,7 @@ import express from 'express';
 import { addNewAddress, createUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, verifyOtp } from '../controllers/user.controller.js';
 import { adminAuth, sellerAndAdminAuth, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { createAdminController, getAllSeller, getSeller, newSellerController, sellerForgetPasswordController, sellerLoginController, sellerPasswordChangeController, sellerPasswordResetController, sellerPickUpAddressSetController, sellerVerifyForgetOtpController, updateProfile } from '../controllers/seller.controller.js';
-import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/Response.utils.js';
+import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/response.utils.js';
 import mongoose from 'mongoose';
 import Product from '../models/product.model.js';
 import comboModel from '../models/combo.model.js';
