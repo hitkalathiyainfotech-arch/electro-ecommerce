@@ -2,7 +2,7 @@ import express from 'express';
 import { addNewAddress, createUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, verifyOtp } from '../controllers/user.controller.js';
 import { adminAuth, sellerAndAdminAuth, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { createAdminController, getAllSeller, getSeller, newSellerController, sellerForgetPasswordController, sellerLoginController, sellerPasswordChangeController, sellerPasswordResetController, sellerPickUpAddressSetController, sellerVerifyForgetOtpController, updateProfile } from '../controllers/seller.controller.js';
-import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/response.utils.js';
+import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/Response.utils.js';
 import mongoose from 'mongoose';
 import Product from '../models/product.model.js';
 import comboModel from '../models/combo.model.js';
@@ -20,6 +20,7 @@ import paymentController from '../controllers/payment.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
 import { createHeroBanner, deleteBanner, getAllBanners, updateBanner } from '../controllers/banner.controller.js';
 import { bestSeller, grabNowDeals, newArrival, trendingDeals } from '../controllers/home.controller.js';
+import { checkUserReview, createReview, deleteReview, getProductReviews, updateReview } from '../controllers/review.controller.js';
 
 const indexRoutes = express.Router();
 
@@ -162,6 +163,12 @@ indexRoutes.post("/payment/:orderId/refund", UserAuth, paymentController.process
 indexRoutes.post("/payment/webhook", paymentController.handleRazorpayWebhook);
 indexRoutes.post("/payment/:orderId/verify-emi", UserAuth, paymentController.verifyEMIPayment);
 
+//reviw.routes.js
+indexRoutes.post('/createReview', UserAuth, createReview);
+indexRoutes.patch('/updateReview/:reviewId', UserAuth, updateReview);
+indexRoutes.delete('/deleteReview/:reviewId', UserAuth, deleteReview);
+indexRoutes.get('/getProductReviews/:productId', getProductReviews);
+indexRoutes.get('/checkUserReview/:productId/:variantId', UserAuth, checkUserReview);
 
 //home page api's
 indexRoutes.post("/heroBanner", adminAuth, upload.array("banners"), createHeroBanner)
