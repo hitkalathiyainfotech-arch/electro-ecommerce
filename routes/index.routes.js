@@ -20,6 +20,7 @@ import paymentController from '../controllers/payment.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
 import { createHeroBanner, deleteBanner, getAllBanners, updateBanner } from '../controllers/banner.controller.js';
 import { bestSeller, getFiltteredProducts, grabNowDeals, newArrival, trendingDeals } from '../controllers/home.controller.js';
+import { checkUserReview, createReview, deleteReview, getProductReviews, updateReview } from '../controllers/review.controller.js';
 import { createOfferBanner, deleteOfferBanner, getAllOfferBanners, updateOfferBanner } from '../controllers/offer.controller.js';
 
 const indexRoutes = express.Router();
@@ -106,7 +107,6 @@ indexRoutes.delete("/deleteProductVariant/:variantId", sellerAndAdminAuth, delet
 indexRoutes.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 indexRoutes.get("/getProductVraintByproductId/:id", getProductVraintByproductId) // controoller prodct controller ma chhe 
 indexRoutes.get("/getVraintSizesByColorName/:id", getVraintSizesByColorName) // controoller prodct controller ma chhe 
-// Combo endpoints (integrated into main router)
 indexRoutes.post("/combo/create", sellerAndAdminAuth, comboController.createCombo);
 indexRoutes.get("/getAllCombos", comboController.getAllCombos);
 indexRoutes.get("/getComboById/:id", comboController.getComboById);
@@ -116,7 +116,6 @@ indexRoutes.delete("/combo/:id", sellerAndAdminAuth, comboController.deleteCombo
 indexRoutes.patch("/combo/toggle/:id", sellerAndAdminAuth, comboController.toggleComboActive);
 indexRoutes.post("/combo/apply/:id", comboController.applyCombo);
 
-// Product -> seller -> combo: get combos for the seller that owns a given product
 indexRoutes.get("/product/:productId/combos", comboController.getProductSellerCombos);
 // Coupon
 indexRoutes.post("/admin/createCoupon", upload.single("couponImage"), adminAuth, createCoupon);
@@ -167,6 +166,12 @@ indexRoutes.post("/payment/:orderId/refund", UserAuth, paymentController.process
 indexRoutes.post("/payment/webhook", paymentController.handleRazorpayWebhook);
 indexRoutes.post("/payment/:orderId/verify-emi", UserAuth, paymentController.verifyEMIPayment);
 
+//reviw.routes.js
+indexRoutes.post('/createReview', UserAuth, createReview);
+indexRoutes.patch('/updateReview/:reviewId', UserAuth, updateReview);
+indexRoutes.delete('/deleteReview/:reviewId', UserAuth, deleteReview);
+indexRoutes.get('/getProductReviews/:productId', getProductReviews);
+indexRoutes.get('/checkUserReview/:productId/:variantId', UserAuth, checkUserReview);
 
 //home page api's
 indexRoutes.post("/heroBanner", adminAuth, upload.array("banners"), createHeroBanner)
@@ -177,7 +182,7 @@ indexRoutes.delete("/deleteBanner/:id", adminAuth, deleteBanner)
 indexRoutes.get("/newArrival", newArrival)
 indexRoutes.get("/bestSellers", bestSeller)
 indexRoutes.get("/trending-deals", trendingDeals)
-indexRoutes.get("/grabNowDeals", grabNowDeals) // sugeestion based on varints
+indexRoutes.get("/grabNowDeals", grabNowDeals)
 
 //offer
 indexRoutes.post("/createOfferBanner", adminAuth, upload.single("offerImage"), createOfferBanner)
@@ -251,7 +256,6 @@ indexRoutes.delete("/deleteMany", async (req, res) => {
   }
 });
 
-// (combo routes integrated above)
 
 indexRoutes.put("/update", upload.single("file"), async (req, res) => {
   try {

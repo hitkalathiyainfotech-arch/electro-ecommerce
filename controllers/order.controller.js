@@ -294,7 +294,6 @@ export const updateOrderStatus = async (req, res) => {
 
     const now = new Date();
 
-    // Multi-seller: update only permitted items
     order.items.forEach(item => {
       const productOwnerId = item.product?.createdBy;
       const productOwnerRole = item.product?.createdByRole;
@@ -305,10 +304,8 @@ export const updateOrderStatus = async (req, res) => {
       if (item.itemStatus !== status) item.itemStatus = status;
     });
 
-    // Update overall order status
     order.orderStatus.current = status;
 
-    // Update history (avoid duplicate consecutive status)
     const lastHistory = order.orderStatus.history[order.orderStatus.history.length - 1];
     if (!lastHistory || lastHistory.status !== status) {
       order.orderStatus.history.push({
@@ -318,7 +315,6 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
-    // Update timeline (first-time line-wise)
     order.timeline = order.timeline || {};
     switch (status) {
       case "pending": order.timeline.orderCreated = order.timeline.orderCreated || now; break;
@@ -330,7 +326,6 @@ export const updateOrderStatus = async (req, res) => {
         order.actualDeliveryDate = order.actualDeliveryDate || now;
         if (order.paymentInfo.status !== "refunded") order.paymentInfo.status = "completed";
 
-        // EMI handling
         if (order.emiInfo?.enabled) {
           order.emiInfo.emiStatus = "active";
           order.emiInfo.paidInstallments = order.items.reduce((sum, item) => {
@@ -343,13 +338,11 @@ export const updateOrderStatus = async (req, res) => {
       case "cancelled":
         order.timeline.orderCancelled = order.timeline.orderCancelled || now;
 
-        // Cancel EMI if active
         if (order.emiInfo?.enabled) order.emiInfo.emiStatus = "failed";
         break;
       case "returned":
         order.timeline.orderReturned = order.timeline.orderReturned || now;
 
-        // Return EMI if active
         if (order.emiInfo?.enabled) order.emiInfo.emiStatus = "failed";
         break;
     }
@@ -382,7 +375,6 @@ export const cancelOrder = async (req, res) => {
       return sendNotFoundResponse(res, "Order not found");
     }
 
-    // Can only cancel pending or confirmed orders
     if (!["pending", "confirmed"].includes(order.orderStatus.current)) {
       return sendBadRequestResponse(res, `Cannot cancel order with status: ${order.orderStatus.current}`);
     }
@@ -423,7 +415,6 @@ export const returnOrder = async (req, res) => {
       return sendNotFoundResponse(res, "Order not found");
     }
 
-    // Can only return delivered orders
     if (order.orderStatus.current !== "delivered") {
       return sendBadRequestResponse(res, "Only delivered orders can be returned");
     }

@@ -497,7 +497,6 @@ export const deleteProductVariant = async (req, res) => {
             { new: true }
         );
 
-        // Delete variant from database
         await ProductVariant.findByIdAndDelete(variantId);
 
         const message = userRole === 'admin'

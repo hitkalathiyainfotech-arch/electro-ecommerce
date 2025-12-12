@@ -25,27 +25,22 @@ export const initiatePayment = async (req, res) => {
     if (!userId) return sendBadRequestResponse(res, "User ID required");
     if (!orderId) return sendBadRequestResponse(res, "Order ID required");
 
-    // Get order details
     const order = await Order.findOne({ orderId, userId });
     if (!order) return sendNotFoundResponse(res, "Order not found");
 
-    // Check if payment already completed
     if (order.paymentInfo.status === "completed") {
       return sendBadRequestResponse(res, "Payment already completed for this order");
     }
 
-    // Check payment method
     if (order.paymentInfo.method !== "razorpay") {
       return sendBadRequestResponse(res, "This order is not for Razorpay payment");
     }
 
-    // Create Razorpay order
     const razorpayOrder = await createRazorpayOrder(
       order.priceSummary.finalTotal,
       orderId
     );
 
-    // Update order with Razorpay order ID
     order.paymentInfo.razorpayOrderId = razorpayOrder.id;
     await order.save();
 
@@ -75,33 +70,27 @@ export const initiateEMIPayment = async (req, res) => {
     if (!orderId) return sendBadRequestResponse(res, "Order ID required");
     if (!tenure) return sendBadRequestResponse(res, "Tenure required");
 
-    // Validate tenure
     if (!EMI_TENURES.includes(tenure)) {
       return sendBadRequestResponse(res, `Invalid tenure. Allowed: ${EMI_TENURES.join(", ")}`);
     }
 
-    // Get order details
     const order = await Order.findOne({ orderId, userId });
     if (!order) return sendNotFoundResponse(res, "Order not found");
 
-    // Check if payment already completed
     if (order.paymentInfo.status === "completed") {
       return sendBadRequestResponse(res, "Payment already completed for this order");
     }
 
-    // Check payment method
     if (order.paymentInfo.method !== "razorpay") {
       return sendBadRequestResponse(res, "This order is not for Razorpay payment");
     }
 
-    // Create EMI order
     const { order: razorpayOrder, emiDetails } = await createRazorpayEMIOrder(
       order.priceSummary.finalTotal,
       orderId,
       tenure
     );
 
-    // Update order with EMI info
     order.paymentInfo.razorpayOrderId = razorpayOrder.id;
     order.emiInfo.enabled = true;
     order.emiInfo.tenure = tenure;
@@ -109,7 +98,6 @@ export const initiateEMIPayment = async (req, res) => {
     order.emiInfo.totalEMIAmount = emiDetails.totalAmount;
     order.emiInfo.interestRate = emiDetails.interestRate;
 
-    // Create installment plans
     const nextPaymentDate = new Date();
     order.emiInfo.installments = Array.from({ length: tenure }, (_, i) => {
       const dueDate = new Date();
@@ -118,7 +106,7 @@ export const initiateEMIPayment = async (req, res) => {
         installmentNo: i + 1,
         amount: emiDetails.monthlyAmount,
         dueDate,
-        status: i === 0 ? "pending" : "pending" // First installment is immediate
+        status: i === 0 ? "pending" : "pending"
       };
     });
 
@@ -293,30 +281,25 @@ export const processRefund = async (req, res) => {
     const order = await Order.findOne({ orderId, userId });
     if (!order) return sendNotFoundResponse(res, "Order not found");
 
-    // Check if payment was made with Razorpay
     if (order.paymentInfo.method !== "razorpay" || !order.paymentInfo.razorpayPaymentId) {
       return sendBadRequestResponse(res, "No Razorpay payment to refund");
     }
 
-    // Check if payment was completed
     if (order.paymentInfo.status !== "completed") {
       return sendBadRequestResponse(res, "Cannot refund incomplete payment");
     }
 
-    // Determine refund amount
     const refundAmount = amount ? Number(amount) : order.paymentInfo.amountPaid || order.priceSummary.finalTotal;
 
     if (refundAmount <= 0) {
       return sendBadRequestResponse(res, "Refund amount must be greater than zero");
     }
 
-    // Process refund
     const refund = await refundRazorpayPayment(
       order.paymentInfo.razorpayPaymentId,
       refundAmount
     );
 
-    // Update order
     order.paymentInfo.status = "refunded";
     order.paymentInfo.refundAmount = refundAmount;
     order.paymentInfo.refundDate = new Date();
@@ -346,7 +329,6 @@ export const handleRazorpayWebhook = async (req, res) => {
   try {
     const { event, payload } = req.body;
 
-    // Verify webhook signature
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
       .update(JSON.stringify(req.body))
@@ -356,17 +338,14 @@ export const handleRazorpayWebhook = async (req, res) => {
       return sendBadRequestResponse(res, "Invalid webhook signature");
     }
 
-    // Handle different webhook events
     switch (event) {
       case "payment.authorized":
       case "payment.failed":
       case "payment.captured":
-        // Handle payment events
         const orderId = payload.payment?.notes?.orderId;
         if (orderId) {
           const order = await Order.findOne({ orderId });
           if (order) {
-            // Update order based on event
             if (event === "payment.captured") {
               order.paymentInfo.status = "completed";
             } else if (event === "payment.failed") {
@@ -380,7 +359,6 @@ export const handleRazorpayWebhook = async (req, res) => {
 
       case "refund.created":
       case "refund.failed":
-        // Handle refund events
         break;
 
       default:
@@ -393,7 +371,6 @@ export const handleRazorpayWebhook = async (req, res) => {
   }
 };
 
-// controllers/paymentController.js
 export const verifyEMIPayment = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -422,15 +399,12 @@ export const verifyEMIPayment = async (req, res) => {
       return sendBadRequestResponse(res, "Payment verification failed");
     }
 
-    // Mark first EMI installment as paid
     const installment = order.emiInfo.installments.find(i => i.status === "pending");
     if (installment) installment.status = "paid";
 
-    // Update next payment date
     const nextInstallment = order.emiInfo.installments.find(i => i.status === "pending");
     order.emiInfo.nextPaymentDate = nextInstallment ? nextInstallment.dueDate : null;
 
-    // Update overall payment status if all installments paid
     const allPaid = order.emiInfo.installments.every(i => i.status === "paid");
     if (allPaid) order.paymentInfo.status = "completed";
 
@@ -452,7 +426,7 @@ export const verifyEMIPayment = async (req, res) => {
 export default {
   initiatePayment,
   initiateEMIPayment,
-   verifyPayment,
+  verifyPayment,
   getPaymentStatus,
   processRefund,
   handleRazorpayWebhook,

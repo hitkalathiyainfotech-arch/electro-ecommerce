@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import CouponModel from "../models/coupon.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
 import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse, sendErrorResponse } from "../utils/response.utils.js";
-// import cartModel from "../models/cart.model.js";
 import { deleteFromS3, updateS3, uploadToS3 } from "../utils/s3Service.js";
 
 export const createCoupon = async (req, res) => {
@@ -113,11 +112,10 @@ export const createCoupon = async (req, res) => {
                 const uploaded = await uploadToS3(couponImage, "coupons");
                 console.log("S3 upload response:", uploaded);
 
-                // Check different possible response structures
                 if (uploaded && uploaded.url) {
                     couponImageUrl = uploaded.url;
                 } else if (uploaded && uploaded.Location) {
-                    couponImageUrl = uploaded.Location; // AWS S3 returns Location
+                    couponImageUrl = uploaded.Location;
                 } else if (uploaded && uploaded.key) {
                     couponImageUrl = `https://your-bucket.s3.amazonaws.com/${uploaded.key}`;
                 } else if (typeof uploaded === 'string') {
@@ -315,12 +313,9 @@ export const updateCoupon = async (req, res) => {
             let img = null;
 
             if (coupon.couponImage) {
-                // Extract key from existing image URL
                 const key = coupon.couponImage.split(".amazonaws.com/")[1];
-                // Use updateS3 function like in category update
                 img = await updateS3(key, couponImage);
             } else {
-                // If no existing image, upload new one
                 const uploaded = await uploadToS3(couponImage, "coupons");
                 if (uploaded && uploaded.url) {
                     img = uploaded.url;
@@ -425,14 +420,12 @@ export const applyCouponController = async (req, res) => {
             const variant = item.productVarientId;
 
             if (variant?.color?.sizes && variant.color.sizes.length > 0 && item.selectedSize) {
-                // Size-level pricing with selected size
                 const selectedSizeObj = variant.color.sizes.find(size => size.sizeValue === item.selectedSize);
                 if (selectedSizeObj) {
                     const effectivePrice = selectedSizeObj.discountedPrice && selectedSizeObj.discountedPrice > 0 ? selectedSizeObj.discountedPrice : selectedSizeObj.price;
                     cartTotal += effectivePrice * item.quantity;
                 }
             } else if (variant?.color) {
-                // Color-level pricing
                 const effectivePrice = variant.color.discountedPrice && variant.color.discountedPrice > 0 ? variant.color.discountedPrice : variant.color.price;
                 cartTotal += effectivePrice * item.quantity;
             }
@@ -552,14 +545,12 @@ export const removeCouponController = async (req, res) => {
             const variant = item.productVarientId;
 
             if (variant?.color?.sizes && variant.color.sizes.length > 0 && item.selectedSize) {
-                // Size-level pricing with selected size
                 const selectedSizeObj = variant.color.sizes.find(size => size.sizeValue === item.selectedSize);
                 if (selectedSizeObj) {
                     const effectivePrice = selectedSizeObj.discountedPrice && selectedSizeObj.discountedPrice > 0 ? selectedSizeObj.discountedPrice : selectedSizeObj.price;
                     cartTotal += effectivePrice * item.quantity;
                 }
             } else if (variant?.color) {
-                // Color-level pricing
                 const effectivePrice = variant.color.discountedPrice && variant.color.discountedPrice > 0 ? variant.color.discountedPrice : variant.color.price;
                 cartTotal += effectivePrice * item.quantity;
             }

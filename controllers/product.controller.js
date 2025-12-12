@@ -275,7 +275,6 @@ export const deleteProduct = async (req, res) => {
     const product = await Product.findById(id);
     if (!product) return sendNotFoundResponse(res, "Product not found");
 
-    // Authorization check
     if (userRole === 'seller' && product.sellerId.toString() !== userId.toString()) {
       return sendBadRequestResponse(res, "You can only delete your own products");
     }
@@ -284,7 +283,6 @@ export const deleteProduct = async (req, res) => {
       return sendBadRequestResponse(res, "Unauthorized access");
     }
 
-    // Delete product banner images from S3
     if (product.productBanner && product.productBanner.length > 0) {
       for (const imgUrl of product.productBanner) {
         try {
@@ -296,10 +294,8 @@ export const deleteProduct = async (req, res) => {
       }
     }
 
-    // Delete product from database
     await Product.findByIdAndDelete(id);
 
-    // Remove product reference from seller
     await sellerModel.findByIdAndUpdate(
       product.sellerId,
       { $pull: { products: product._id } },
@@ -396,17 +392,14 @@ export const getVraintSizesByColorName = async (req, res) => {
       return sendBadRequestResponse(res, "Color name is required");
     }
 
-    // find variant
     const variant = await productVarientModel.findById(id).select("color");
 
     if (!variant) {
       return sendBadRequestResponse(res, "Variant not found");
     }
 
-    // color is a single object (NOT ARRAY)
     const color = variant.color;
 
-    // check color name match
     if (
       color &&
       color.colorName.toLowerCase().trim() === name.toLowerCase().trim()

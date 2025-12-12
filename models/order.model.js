@@ -15,21 +15,18 @@ const orderItemSchema = new mongoose.Schema(
     selectedColor: { type: String },
     selectedSize: { type: String },
 
-    // Pricing
-    price: { type: Number, required: true }, // unit price
-    discountedPrice: { type: Number }, // unit discounted price
+    price: { type: Number, required: true },
+    discountedPrice: { type: Number },
     quantity: { type: Number, required: true, min: 1 },
     totalPrice: { type: Number, required: true },
     totalDiscountedPrice: { type: Number },
 
-    // Seller
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "seller",
       required: true
     },
 
-    // Item status
     itemStatus: {
       type: String,
       enum: ["pending", "confirmed", "shipped", "delivered", "returned", "cancelled"],
@@ -41,14 +38,12 @@ const orderItemSchema = new mongoose.Schema(
 
 const orderSchema = new mongoose.Schema(
   {
-    // User info
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
       required: true
     },
 
-    // Order identification
     orderId: {
       type: String,
       unique: true,
@@ -56,10 +51,8 @@ const orderSchema = new mongoose.Schema(
       index: true
     },
 
-    // Items from cart
     items: [orderItemSchema],
 
-    // Shipping Address
     shippingAddress: {
       country: { type: String, required: true },
       houseDetails: { type: String, required: true },
@@ -71,7 +64,6 @@ const orderSchema = new mongoose.Schema(
       mapUrl: { type: String }
     },
 
-    // Courier Information
     courierService: {
       type: String,
       enum: ["regular", "standard"],
@@ -81,7 +73,6 @@ const orderSchema = new mongoose.Schema(
     actualDeliveryDate: { type: Date },
     trackingNumber: { type: String },
 
-    // Price Summary
     priceSummary: {
       subtotal: { type: Number, default: 0 }, // original prices
       itemDiscount: { type: Number, default: 0 }, // product discounts
@@ -93,7 +84,6 @@ const orderSchema = new mongoose.Schema(
       finalTotal: { type: Number, default: 0 }
     },
 
-    // Applied Offers
     appliedOffers: {
       combos: [
         {
@@ -117,7 +107,6 @@ const orderSchema = new mongoose.Schema(
       }
     },
 
-    // Payment Information
     paymentInfo: {
       method: {
         type: String,
@@ -138,7 +127,6 @@ const orderSchema = new mongoose.Schema(
       refundDate: Date
     },
 
-    // EMI Information
     emiInfo: {
       enabled: { type: Boolean, default: false },
       tenure: { type: Number }, // months (3, 6, 9, 12 etc)
@@ -164,7 +152,6 @@ const orderSchema = new mongoose.Schema(
       ]
     },
 
-    // Order Status with Timeline
     orderStatus: {
       current: {
         type: String,
@@ -180,7 +167,6 @@ const orderSchema = new mongoose.Schema(
       ]
     },
 
-    // Automatic Timeline based on status
     timeline: {
       orderCreated: { type: Date },
       paymentCompleted: { type: Date },
@@ -192,18 +178,15 @@ const orderSchema = new mongoose.Schema(
       orderReturned: { type: Date }
     },
 
-    // Additional Info
     notes: String,
     cancellationReason: String,
     returnReason: String,
 
-    // Tracking
     lastUpdated: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );
 
-// Indexes for quick lookup
 orderSchema.index({ userId: 1 });
 orderSchema.index({ orderId: 1 });
 orderSchema.index({ "orderStatus.current": 1 });
