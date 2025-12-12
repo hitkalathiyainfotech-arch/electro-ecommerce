@@ -452,7 +452,7 @@ export const verifyEMIPayment = async (req, res) => {
 export default {
   initiatePayment,
   initiateEMIPayment,
-  verifyPayment,
+   verifyPayment,
   getPaymentStatus,
   processRefund,
   handleRazorpayWebhook,
