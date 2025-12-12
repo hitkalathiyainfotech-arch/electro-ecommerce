@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import brandModel from "../models/brand.model.js";
 import productModel from "../models/product.model.js";
 import productVarientModel from "../models/productVarient.model.js";
@@ -167,3 +168,127 @@ export const grabNowDeals = async (req, res) => {
     return sendErrorResponse(res, 500, error.message);
   }
 };
+
+
+export const getFiltteredProducts = async (req, res) => {
+  try {
+    const {
+      categories,
+      brand,
+      minPrice,
+      maxPrice,
+      color,
+      size,
+      storage,
+      ram,
+      sort,
+      page = 1,
+      limit = 20
+    } = req.query
+
+    const matchProduct = { isActive: true }
+    const matchVariant = {}
+
+    if (categories)
+      matchProduct.categories = {
+        $in: categories.split(",").map(id => new mongoose.Types.ObjectId(id))
+      }
+
+    if (brand)
+      matchProduct.brand = {
+        $in: brand.split(",").map(id => new mongoose.Types.ObjectId(id))
+      }
+
+    const priceFilter = {}
+    if (minPrice) priceFilter.$gte = Number(minPrice)
+    if (maxPrice) priceFilter.$lte = Number(maxPrice)
+
+    if (minPrice || maxPrice) {
+      matchVariant.$or = [
+        { "color.price": priceFilter },
+        { "color.discountedPrice": priceFilter },
+        { "color.sizes.price": priceFilter },
+        { "color.sizes.discountedPrice": priceFilter }
+      ]
+    }
+
+    if (color)
+      matchVariant["color.colorName"] = { $in: color.split(",") }
+
+    if (size)
+      matchVariant["color.sizes.sizeValue"] = { $in: size.split(",") }
+
+    if (storage)
+      matchVariant["specification.details"] = {
+        $elemMatch: {
+          key: { $regex: "storage|rom|internal", $options: "i" },
+          value: { $regex: storage.split(",").join("|"), $options: "i" }
+        }
+      }
+
+    if (ram)
+      matchVariant["specification.details"] = {
+        $elemMatch: {
+          key: { $regex: "ram|memory", $options: "i" },
+          value: { $regex: ram.split(",").join("|"), $options: "i" }
+        }
+      }
+
+    const pipeline = [
+      { $match: matchProduct },
+      {
+        $lookup: {
+          from: "productvariants",
+          localField: "_id",
+          foreignField: "productId",
+          as: "variants"
+        }
+      },
+      { $unwind: "$variants" }
+    ]
+
+    if (Object.keys(matchVariant).length) {
+      const transformedVariantFilter = {}
+      for (const key in matchVariant) transformedVariantFilter[`variants.${key}`] = matchVariant[key]
+      pipeline.push({ $match: transformedVariantFilter })
+    }
+
+    pipeline.push(
+      {
+        $group: {
+          _id: "$_id",
+          product: { $first: "$$ROOT" },
+          variants: { $push: "$variants" }
+        }
+      },
+      { $project: { product: 1, variants: 1 } }
+    )
+
+    if (sort === "price_low")
+      pipeline.push({ $sort: { "variants.color.price": 1 } })
+
+    if (sort === "price_high")
+      pipeline.push({ $sort: { "variants.color.price": -1 } })
+
+    if (sort === "latest")
+      pipeline.push({ $sort: { "product.createdAt": -1 } })
+
+    if (sort === "popular")
+      pipeline.push({ $sort: { "product.sold": -1 } })
+
+    pipeline.push({ $skip: (page - 1) * limit })
+    pipeline.push({ $limit: Number(limit) })
+
+    const data = await productModel.aggregate(pipeline)
+
+    return res.status(200).json({ success: true, count: data.length, data })
+  } catch (error) {
+    return sendErrorResponse(
+      res,
+      500,
+      "Error while fetching filtered products",
+      error
+    )
+  }
+}
+

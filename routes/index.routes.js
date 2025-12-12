@@ -19,7 +19,7 @@ import orderController from '../controllers/order.controller.js';
 import paymentController from '../controllers/payment.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
 import { createHeroBanner, deleteBanner, getAllBanners, updateBanner } from '../controllers/banner.controller.js';
-import { bestSeller, grabNowDeals, newArrival, trendingDeals } from '../controllers/home.controller.js';
+import { bestSeller, getFiltteredProducts, grabNowDeals, newArrival, trendingDeals } from '../controllers/home.controller.js';
 import { createOfferBanner, deleteOfferBanner, getAllOfferBanners, updateOfferBanner } from '../controllers/offer.controller.js';
 
 const indexRoutes = express.Router();
@@ -91,6 +91,10 @@ indexRoutes.patch("/updateProduct/:id", sellerAndAdminAuth, upload.array("produc
 indexRoutes.delete("/deleteProduct/:id", sellerAndAdminAuth, deleteProduct)
 indexRoutes.get("/getProductByCategory/:categoryId", getProductByCategory)
 indexRoutes.get("/getProductsByBrand/:brandId", getProductsByBrand)
+
+
+// filtter producrts
+indexRoutes.get("/filter", getFiltteredProducts)
 
 //productVarient
 indexRoutes.post("/createProductVariant", sellerAndAdminAuth, upload.array("images", 10), createProductVariant);
