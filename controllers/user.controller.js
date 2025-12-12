@@ -731,11 +731,9 @@ export const getUserProfile = async (req, res) => {
       return sendNotFoundResponse(res, "User not found");
     }
 
-    // Find the selected address full details
     const selectedAddressId = user.selectedAddress;
     const selectedAddressDetails = user.addresses?.find(addr => addr._id.toString() === selectedAddressId?.toString());
 
-    // Build response with selected address details
     const userProfile = {
       _id: user._id,
       fullName: user.fullName,

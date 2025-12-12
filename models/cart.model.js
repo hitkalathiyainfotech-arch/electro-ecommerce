@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 const cartItemSchema = new mongoose.Schema(
   {
-    // Product or variant reference
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "product",
@@ -13,29 +12,23 @@ const cartItemSchema = new mongoose.Schema(
       ref: "productVariant",
       required: false
     },
-    // Combo offer reference (optional, if item is part of a combo)
     comboOffer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "comboOffer",
       required: false
     },
-    // For variant selections
     selectedColor: { type: String },
     selectedSize: { type: String },
 
-    // Pricing
-    price: { type: Number, required: true }, // unit price
-    discountedPrice: { type: Number }, // unit discounted price
+    price: { type: Number, required: true },
+    discountedPrice: { type: Number },
     quantity: { type: Number, required: true, min: 1 },
 
-    // Calculated at add time
     totalPrice: { type: Number, required: true },
     totalDiscountedPrice: { type: Number },
 
-    // Stock reference
     stock: { type: Number, required: true },
 
-    // Seller info
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "seller",
@@ -58,13 +51,11 @@ const cartSchema = new mongoose.Schema(
     },
     items: [cartItemSchema],
 
-    // Cart summary
     totalItems: { type: Number, default: 0 },
-    totalPrice: { type: Number, default: 0 }, // original prices
-    totalDiscountedPrice: { type: Number, default: 0 }, // final prices with discounts
-    totalSavings: { type: Number, default: 0 }, // difference
+    totalPrice: { type: Number, default: 0 },
+    totalDiscountedPrice: { type: Number, default: 0 },
+    totalSavings: { type: Number, default: 0 },
 
-    // Applied combos
     appliedCombos: [
       {
         comboId: {
@@ -75,7 +66,6 @@ const cartSchema = new mongoose.Schema(
       }
     ],
 
-    // Applied coupon
     appliedCoupon: {
       couponId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -88,7 +78,6 @@ const cartSchema = new mongoose.Schema(
       appliedAt: { type: Date }
     },
 
-    // Courier Service Selection
     courierService: {
       type: String,
       enum: ["regular", "standard"],
@@ -97,18 +86,16 @@ const cartSchema = new mongoose.Schema(
     estimatedDeliveryDate: { type: Date },
     deliveryCharge: { type: Number, default: 12 },
 
-    // Final billing
-    subtotal: { type: Number, default: 0 }, // before discount
+    subtotal: { type: Number, default: 0 },
     comboDiscount: { type: Number, default: 0 },
     couponDiscount: { type: Number, default: 0 },
-    gst: { type: Number, default: 0 }, // 18% GST
+    gst: { type: Number, default: 0 },
     shippingCharges: { type: Number, default: 0 },
-    finalTotal: { type: Number, default: 0 } // after all discounts + GST + shipping
+    finalTotal: { type: Number, default: 0 }
   },
   { timestamps: true }
 );
 
-// Index for quick lookup
 cartSchema.index({ userId: 1 });
 
 export default mongoose.model("cart", cartSchema);

@@ -35,7 +35,6 @@ reviewSchema.statics.getVariantRatingStats = async function (variantId) {
     };
 };
 
-// Get overall product rating stats (across all variants)
 reviewSchema.statics.getProductRatingStats = async function (productId) {
     const result = await this.aggregate([
         { $match: { productId: new mongoose.Types.ObjectId(productId) } },

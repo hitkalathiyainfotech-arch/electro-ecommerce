@@ -3,12 +3,6 @@ import categoryModel from "../models/category.model.js";
 import { checkRequired, sendBadRequestResponse, sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js"
 import { deleteFromS3, updateS3, uploadToS3 } from "../utils/s3Service.js";
 
-/**
- * 
- * @param {import("express").Request} req 
- * @param {import("express").Response} res 
- * @returns 
- */
 
 export const createNewCategory = async (req, res) => {
   try {
@@ -130,12 +124,6 @@ export const deleteCategory = async (req, res) => {
   }
 }
 
-/**
- * 
- * @param {import("express").Request} req 
- * @param {import("express").Response} res 
- * @returns 
- */
 export const searchCategory = async (req, res) => {
   try {
     const { q, page = 1, limit = 20 } = req.query;

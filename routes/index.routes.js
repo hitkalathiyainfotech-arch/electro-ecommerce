@@ -103,7 +103,6 @@ indexRoutes.delete("/deleteProductVariant/:variantId", sellerAndAdminAuth, delet
 indexRoutes.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 indexRoutes.get("/getProductVraintByproductId/:id", getProductVraintByproductId) // controoller prodct controller ma chhe 
 indexRoutes.get("/getVraintSizesByColorName/:id", getVraintSizesByColorName) // controoller prodct controller ma chhe 
-// Combo endpoints (integrated into main router)
 indexRoutes.post("/combo/create", sellerAndAdminAuth, comboController.createCombo);
 indexRoutes.get("/getAllCombos", comboController.getAllCombos);
 indexRoutes.get("/getComboById/:id", comboController.getComboById);
@@ -113,7 +112,6 @@ indexRoutes.delete("/combo/:id", sellerAndAdminAuth, comboController.deleteCombo
 indexRoutes.patch("/combo/toggle/:id", sellerAndAdminAuth, comboController.toggleComboActive);
 indexRoutes.post("/combo/apply/:id", comboController.applyCombo);
 
-// Product -> seller -> combo: get combos for the seller that owns a given product
 indexRoutes.get("/product/:productId/combos", comboController.getProductSellerCombos);
 // Coupon
 indexRoutes.post("/admin/createCoupon", upload.single("couponImage"), adminAuth, createCoupon);
@@ -180,7 +178,7 @@ indexRoutes.delete("/deleteBanner/:id", adminAuth, deleteBanner)
 indexRoutes.get("/newArrival", newArrival)
 indexRoutes.get("/bestSellers", bestSeller)
 indexRoutes.get("/trending-deals", trendingDeals)
-indexRoutes.get("/grabNowDeals", grabNowDeals) // sugeestion based on varints
+indexRoutes.get("/grabNowDeals", grabNowDeals)
 
 //offer
 indexRoutes.post("/createOfferBanner", adminAuth, upload.single("offerImage"), createOfferBanner)
@@ -254,7 +252,6 @@ indexRoutes.delete("/deleteMany", async (req, res) => {
   }
 });
 
-// (combo routes integrated above)
 
 indexRoutes.put("/update", upload.single("file"), async (req, res) => {
   try {

@@ -1,16 +1,13 @@
 import Razorpay from 'razorpay';
 import 'dotenv/config';
 
-// Initialize Razorpay with your API credentials
 export const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || 'your_key_id_here',
   key_secret: process.env.RAZORPAY_KEY_SECRET || 'your_key_secret_here'
 });
 
-// EMI Tenure options available
 export const EMI_TENURES = [3, 6, 9, 12]; // months
 
-// EMI Interest rates (can be configured based on tenure)
 export const EMI_INTEREST_RATES = {
   3: 0, // 0% for 3 months
   6: 2, // 2% for 6 months
@@ -18,11 +15,6 @@ export const EMI_INTEREST_RATES = {
   12: 4 // 4% for 12 months
 };
 
-/**
- * Calculate EMI details
- * Formula: EMI = (Principal × Rate × (1 + Rate)^n) / ((1 + Rate)^n - 1)
- * For simplicity, using: Monthly Amount = (Principal + Interest) / Tenure
- */
 export const calculateEMI = (principal, tenure) => {
   if (!EMI_TENURES.includes(tenure)) {
     throw new Error(`Invalid tenure. Allowed: ${EMI_TENURES.join(', ')}`);
@@ -51,16 +43,13 @@ export const calculateEMI = (principal, tenure) => {
   };
 };
 
-/**
- * Create Razorpay order for payment
- */
 export const createRazorpayOrder = async (amount, orderId, currency = 'INR') => {
   try {
     const order = await razorpayInstance.orders.create({
-      amount: amount * 100, // Convert to paise
+      amount: amount * 100,
       currency,
       receipt: orderId,
-      payment_capture: 1 // Auto-capture payment
+      payment_capture: 1
     });
 
     return order;
@@ -69,15 +58,12 @@ export const createRazorpayOrder = async (amount, orderId, currency = 'INR') => 
   }
 };
 
-/**
- * Create Razorpay order for EMI
- */
 export const createRazorpayEMIOrder = async (amount, orderId, tenure, currency = 'INR') => {
   try {
     const emiDetails = calculateEMI(amount, tenure);
 
     const order = await razorpayInstance.orders.create({
-      amount: amount * 100, // Total amount in paise
+      amount: amount * 100,
       currency,
       receipt: orderId,
       payment_capture: 1,
@@ -97,9 +83,6 @@ export const createRazorpayEMIOrder = async (amount, orderId, tenure, currency =
   }
 };
 
-/**
- * Verify Razorpay payment signature
- */
 import crypto from 'crypto'
 export const verifyRazorpaySignature = (
   orderId,
@@ -114,9 +97,6 @@ export const verifyRazorpaySignature = (
   return generatedSignature === signature;
 };
 
-/**
- * Fetch payment details from Razorpay
- */
 export const getRazorpayPaymentDetails = async (paymentId) => {
   try {
     const payment = await razorpayInstance.payments.fetch(paymentId);
@@ -126,9 +106,6 @@ export const getRazorpayPaymentDetails = async (paymentId) => {
   }
 };
 
-/**
- * Refund payment
- */
 export const refundRazorpayPayment = async (paymentId, amount) => {
   try {
     const options = {};
