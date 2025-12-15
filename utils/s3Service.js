@@ -19,23 +19,20 @@ export const uploadToS3 = async (file, folder = "uploads") => {
 };
 
 export const deleteFromS3 = async (fileKey) => {
-  if (fileKey) {
-    const decodedKey = decodeURIComponent(fileKey);
-    console.log("Decoded Key:", decodedKey);
-  }
+  if (!fileKey) return;
+
+  const decodedKey = decodeURIComponent(fileKey);
 
   const params = {
     Bucket: process.env.AWS_BUCKET_NAME,
-    Key: fileKey
+    Key: decodedKey
   };
-
 
   try {
     const result = await s3.deleteObject(params).promise();
     return result;
   } catch (error) {
-    console.error("❌ S3 Delete Error:", error.message);
-    console.error("Full Error:", error);
+    console.error("❌ S3 Delete Error:", error);
     throw error;
   }
 };
