@@ -57,15 +57,25 @@ export const getAllCategory = async (req, res) => {
 
 export const getCategoryById = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
 
-    const category = await categoryModel.find({ _id: id })
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return sendBadRequestResponse(res, "Invalid category id")
+    }
+
+    const category = await categoryModel.findById(id)
       .populate("sellerId", "firstName mobileNo email avatar role")
-      .sort({ createdAt: -1 })
 
-    return sendSuccessResponse(res, "All Category Featched Successfully", {
-      total: category.length,
-      category
+    if (!category) {
+      return sendBadRequestResponse(res, "Category not found")
+    }
+
+    const childCategories = await categoryModel.find({ parentCategory: id })
+
+    return sendSuccessResponse(res, "Category fetched successfully", {
+      category,
+      childCategories,
+      hasChild: childCategories.length > 0
     })
 
   } catch (error) {
@@ -146,5 +156,43 @@ export const searchCategory = async (req, res) => {
   } catch (error) {
     console.log("Error while Search category", error.message);
     return sendErrorResponse(res, 500, "Error while Search category", error);
+  }
+}
+
+export const addChildCategory = async (req, res) => {
+  try {
+    const { parentId } = req.params
+    const { chaildCategoryId } = req.body
+
+    if (!mongoose.Types.ObjectId.isValid(parentId)) {
+      return sendBadRequestResponse(res, "Invalid parentId")
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(chaildCategoryId)) {
+      return sendBadRequestResponse(res, "Invalid chaildCategoryId")
+    }
+
+    const parentCategory = await categoryModel.findById(parentId)
+    if (!parentCategory) {
+      return sendBadRequestResponse(res, "Parent category not found")
+    }
+
+    const childCategory = await categoryModel.findById(chaildCategoryId)
+    if (!childCategory) {
+      return sendBadRequestResponse(res, "Child category not found")
+    }
+
+    childCategory.parentCategory = parentId
+    await childCategory.save()
+
+    return sendSuccessResponse(
+      res,
+      "Child category added successfully",
+      childCategory
+    )
+
+  } catch (error) {
+    console.log("Error while adding child category", error.message)
+    return sendErrorResponse(res, 500, "Error while adding child category", error)
   }
 }

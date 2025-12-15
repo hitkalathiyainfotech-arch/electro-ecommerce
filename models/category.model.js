@@ -9,6 +9,11 @@ const categorySchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  parentCategory: {
+    type: mongoose.Types.ObjectId,
+    ref: "category",
+    default: null
+  },           
   sellerId: {
     type: mongoose.Types.ObjectId,
     ref: "seller",

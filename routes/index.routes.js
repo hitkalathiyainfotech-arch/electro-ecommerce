@@ -1,14 +1,11 @@
 import express from 'express';
-import { addNewAddress, createUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, verifyOtp } from '../controllers/user.controller.js';
+import { addNewAddress, createUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, searchAddress, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, verifyOtp } from '../controllers/user.controller.js';
 import { adminAuth, sellerAndAdminAuth, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { createAdminController, getAllSeller, getSeller, newSellerController, sellerForgetPasswordController, sellerLoginController, sellerPasswordChangeController, sellerPasswordResetController, sellerPickUpAddressSetController, sellerVerifyForgetOtpController, updateProfile } from '../controllers/seller.controller.js';
 import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/response.utils.js';
-import mongoose from 'mongoose';
-import Product from '../models/product.model.js';
-import comboModel from '../models/combo.model.js';
 import { deleteFromS3, deleteManyFromS3, listBucketObjects, updateS3, uploadToS3 } from '../utils/s3Service.js';
 import { upload } from '../helper/imageUplode.js';
-import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
+import { addChildCategory, createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
 import { createBrand, deleteBrand, getAllBrands, getBrandsById, getProductsByBrandId, getSellerBrands, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/wishlist.controller.js';
 import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getProductVraintByproductId, getSellerProducts, getVraintSizesByColorName, updateProduct } from '../controllers/product.controller.js';
@@ -43,6 +40,7 @@ indexRoutes.get("/getAllUserAddress", UserAuth, getAllUserAddress);
 indexRoutes.get("/getUserAddressById/:id", UserAuth, getUserAddressById);
 indexRoutes.delete("/deleteUserAddress/:id", UserAuth, deleteUserAddress);
 indexRoutes.post("/selectUserAddress", UserAuth, selectUserAddress);
+indexRoutes.get("/searchAddress", UserAuth, searchAddress);
 
 indexRoutes.get("/getUserProfile", UserAuth, getUserProfile)
 
@@ -72,6 +70,7 @@ indexRoutes.get("/getCategoryById/:id", getCategoryById)
 indexRoutes.patch("/updateCategoryById/:id", adminAuth, upload.single("categoryImage"), updateCategory)
 indexRoutes.delete("/deleteCategory/:id", adminAuth, deleteCategory)
 indexRoutes.get("/searchCategory", searchCategory)
+indexRoutes.post("/addChildCategory/:parentId", adminAuth, addChildCategory);
 
 //brand 
 indexRoutes.post("/createBrand", sellerAndAdminAuth, upload.single("brandImage"), createBrand)
