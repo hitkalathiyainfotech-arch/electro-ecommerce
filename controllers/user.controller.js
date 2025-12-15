@@ -7,11 +7,6 @@ import transporter from '../config/email.config.js';
 import axios from "axios";
 import mongoose from 'mongoose';
 
-/**
- * @param {AuthRequest} req
- * @param {import('express').Response} res
- */
-
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_SCERET;
 
@@ -88,7 +83,88 @@ export const createUser = async (req, res) => {
       isSocialLogin: newUser.isSocialLogin
     };
 
-    return sendSuccessResponse(res, "New User Register Successful", {
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const expiry = Date.now() + 5 * 60 * 1000;
+
+    newUser.otp = otp;
+    newUser.otpExpiry = expiry;
+    await newUser.save();
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER || "hit.kalathiyainfotech@gmail.com",
+      to: email,
+      subject: "Password Reset OTP",
+      html: `
+      <div style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif">
+        <div style="max-width:520px;margin:auto;background:white;border-radius:18px;overflow:hidden;box-shadow:0 10px 35px rgba(0,0,0,0.08)">
+        
+        <div style="background:linear-gradient(135deg,#2563eb,#1e40af);padding:40px;text-align:center;position:relative">
+          <img src="https://cdn.jsdelivr.net/gh/dhruvish12/imagestorage_repo@main/images/1764586037_electro-ecommerce.png" 
+              style="width:80px;height:80px;border-radius:50%;background:white;padding:10px;box-shadow:0 4px 15px rgba(0,0,0,0.2)">
+          <h1 style="color:white;margin:20px 0 0;font-size:30px;font-weight:700;letter-spacing:0.5px">
+            Electro-Ecommerce
+          </h1>
+          <p style="color:#dbeafe;margin-top:8px;font-size:15px">
+            Secure Password Reset Verification
+          </p>
+          <svg viewBox="0 0 500 50" preserveAspectRatio="none" style="position:absolute;bottom:-1px;left:0;width:100%;height:50px">
+            <path d="M0,0 C150,50 350,0 500,30 L500,50 L0,50 Z" style="fill:#1e40af"></path>
+          </svg>
+        </div>
+
+        <div style="padding:35px 40px">
+          <p style="color:#111;font-size:19px;font-weight:600;margin:0 0 12px;text-align:center">
+            Your One-Time Password (OTP)
+          </p>
+
+          <p style="color:#555;font-size:15px;margin:0 0 28px;line-height:1.6;text-align:center">
+            Enter the verification code below to reset your password. This ensures your account stays safe.
+          </p>
+
+          <div style="text-align:center;margin-bottom:35px">
+            <div style="
+              display:inline-block;
+              font-size:40px;
+              font-weight:700;
+              letter-spacing:12px;
+              padding:18px 0;
+              color:#1e3a8a;
+              border-radius:14px;
+              background:#e0efff;
+              border:2px solid #bfdbfe;
+              min-width:180px;
+              text-align:center;
+            ">
+              ${otp}
+            </div>
+          </div>
+
+          <p style="text-align:center;color:#444;font-size:14px;margin-bottom:30px">
+            This OTP will expire in <b>5 minutes</b>.
+          </p>
+
+          <div style="text-align:center;margin-bottom:35px">
+            <img src="https://cdn.jsdelivr.net/gh/dhruvish12/imagestorage_repo@main/images/1764586037_electro-ecommerce.png" 
+                style="width:10%;border-radius:14px;box-shadow:0 6px 22px rgba(0,0,0,0.12)">
+          </div>
+
+          <p style="font-size:13px;color:#888;text-align:center;line-height:1.5">
+            If you didn’t request this, you can safely ignore this message.
+          </p>
+        </div>
+
+        <div style="background:#f9fafb;padding:20px;text-align:center;border-top:1px solid #eee;border-radius:0 0 18px 18px">
+          <p style="margin:0;font-size:12px;color:#777">
+            © ${new Date().getFullYear()} Electro-Ecommerce. All rights reserved.
+          </p>
+        </div>
+
+      </div>
+    </div>
+      `
+    });
+
+    return sendSuccessResponse(res, "New User Register Successful and Otp send successfully", {
       user: safeUser,
       token
     });
@@ -552,21 +628,6 @@ export const addNewAddress = async (req, res) => {
   }
 };
 
-/**
- * @typedef {Object} AuthUser
- * @property {string} _id
- * @property {string} fullName
- * @property {string} email
- */
-
-/**
- * @typedef {import('express').Request & { user?: AuthUser }} AuthRequest
- */
-
-/**
- * @param {AuthRequest} req
- * @param {import('express').Response} res
- */
 export const updateUserAddress = async (req, res) => {
   try {
     const addressId = req.params.id;
