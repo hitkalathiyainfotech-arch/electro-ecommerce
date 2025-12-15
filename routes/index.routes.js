@@ -1,5 +1,5 @@
 import express from 'express';
-import { addNewAddress, createUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, searchAddress, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, verifyOtp } from '../controllers/user.controller.js';
+import { addNewAddress, createUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, searchAddress, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, userPasswordChangeController, userUpdateProfile, verifyOtp } from '../controllers/user.controller.js';
 import { adminAuth, sellerAndAdminAuth, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { createAdminController, getAllSeller, getSeller, newSellerController, sellerForgetPasswordController, sellerLoginController, sellerPasswordChangeController, sellerPasswordResetController, sellerPickUpAddressSetController, sellerVerifyForgetOtpController, updateProfile } from '../controllers/seller.controller.js';
 import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/response.utils.js';
@@ -26,10 +26,12 @@ indexRoutes.post("/createUser", createUser);
 indexRoutes.post("/userLogin", userLogin);
 
 indexRoutes.post("/socialLogin", socialLogin)
+indexRoutes.post("/userUpdateProfile", UserAuth, upload.single("avatar"), userUpdateProfile)
 
 indexRoutes.post("/forgotPassword", forgotPassword)
 indexRoutes.post("/verifyOtp", verifyOtp)
 indexRoutes.post("/resetPassword", resetPassword)
+indexRoutes.put("/userPasswordChange", UserAuth, userPasswordChangeController)
 
 indexRoutes.get("/getAllCountry", getAllCountry);
 indexRoutes.get("/selectCountry/:country", UserAuth, selectCountry);
@@ -52,7 +54,7 @@ indexRoutes.post("/seller/updateProfile", sellerAndAdminAuth, upload.single("ava
 indexRoutes.post("/seller/forget/password", sellerForgetPasswordController);
 indexRoutes.post("/seller/verify/forget/password", sellerVerifyForgetOtpController);
 indexRoutes.post("/seller/reset/password", sellerPasswordResetController);
-indexRoutes.post("/seller/change/password", sellerAndAdminAuth, sellerPasswordChangeController);
+indexRoutes.put("/seller/change/password", sellerAndAdminAuth, sellerPasswordChangeController);
 indexRoutes.post("/seller/pickup/address", sellerAuth, sellerPickUpAddressSetController)
 
 
@@ -91,7 +93,6 @@ indexRoutes.patch("/updateProduct/:id", sellerAndAdminAuth, upload.array("produc
 indexRoutes.delete("/deleteProduct/:id", sellerAndAdminAuth, deleteProduct)
 indexRoutes.get("/getProductByCategory/:categoryId", getProductByCategory)
 indexRoutes.get("/getProductsByBrand/:brandId", getProductsByBrand)
-
 
 // filtter producrts
 indexRoutes.get("/filter", getFiltteredProducts)

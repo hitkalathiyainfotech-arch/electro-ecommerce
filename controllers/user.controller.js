@@ -3,9 +3,11 @@ import { comparePassword, hashPassword } from '../utils/bcrypt.utils.js';
 import { checkRequired, sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from '../utils/response.utils.js';
 import jwt from 'jsonwebtoken';
 import 'dotenv/config';
+import bcrypt from "bcryptjs";
 import transporter from '../config/email.config.js';
 import axios from "axios";
 import mongoose from 'mongoose';
+import { deleteFromS3, updateS3, uploadToS3 } from '../utils/s3Service.js';
 
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.JWT_SCERET;
@@ -491,6 +493,43 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+export const userPasswordChangeController = async (req, res) => {
+  try {
+    const { id } = req?.user;
+    const { oldPassword, newPassword } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return sendBadRequestResponse(res, "Invalid userId");
+    }
+
+    if (!oldPassword || !newPassword) {
+      return sendBadRequestResponse(res, "Old password and new password required");
+    }
+
+    const user = await userModel.findById(id).select("password");
+
+    if (!user) {
+      return sendBadRequestResponse(res, "user not found");
+    }
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return sendBadRequestResponse(res, "Old password is incorrect");
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    return sendSuccessResponse(res, "Password changed successfully");
+  } catch (error) {
+    console.error("Change Password Error:", error);
+    return sendErrorResponse(res, 500, "Something went wrong while changing password", error);
+  }
+}
+
 export const getAllCountry = async (req, res) => {
   try {
     const { data } = await axios.get(
@@ -873,3 +912,80 @@ export const getUserProfile = async (req, res) => {
     return sendErrorResponse(res, 500, "Error while Get User Profile " + error.message);
   }
 }
+
+export const userUpdateProfile = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return sendBadRequestResponse(res, "Invalid User ID");
+    }
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return sendNotFoundResponse(res, "User not found");
+    }
+
+    const { fullName, email, phone } = req.body || {};
+
+    if (fullName !== undefined) user.fullName = fullName;
+    if (email !== undefined) user.email = email;
+    if (phone !== undefined) user.phone = phone;
+
+    if (req.file) {
+      let newAvatarUrl;
+
+      if (user.avatar?.includes(".amazonaws.com/")) {
+        const oldKey = user.avatar.split(".amazonaws.com/")[1];
+
+        try {
+          await deleteFromS3(oldKey);
+        } catch (error) {
+          return sendErrorResponse(
+            res,
+            500,
+            "Failed to delete old profile image"
+          );
+        }
+      }
+
+      try {
+        const uploaded = await uploadToS3(req.file, "users");
+        newAvatarUrl =
+          typeof uploaded === "string"
+            ? uploaded
+            : uploaded?.Location;
+
+      } catch (error) {
+        return sendErrorResponse(
+          res,
+          500,
+          "Failed to upload new profile image"
+        );
+      }
+
+      user.avatar = newAvatarUrl;
+    }
+
+    await user.save();
+
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    delete safeUser.__v;
+
+    return sendSuccessResponse(
+      res,
+      "Profile updated successfully",
+      safeUser
+    );
+
+  } catch (error) {
+    console.error("Profile update error:", error);
+    return sendErrorResponse(
+      res,
+      500,
+      "Error while updating profile",
+      error.message
+    );
+  }
+};
