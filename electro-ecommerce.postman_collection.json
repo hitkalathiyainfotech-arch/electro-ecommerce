@@ -1,0 +1,4369 @@
+{
+	"info": {
+		"_postman_id": "3c9e236c-5632-4d16-ae8d-d6079459f3ea",
+		"name": "electro-ecommerce",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48673671",
+		"_collection_link": "https://darshandhameliya-4921677.postman.co/workspace/darshan-dhameliya's-Workspace~e5513cef-7cc3-4cf1-8912-bbce39596924/collection/45110662-3c9e236c-5632-4d16-ae8d-d6079459f3ea?action=share&source=collection_link&creator=48673671"
+	},
+	"item": [
+		{
+			"name": "user",
+			"item": [
+				{
+					"name": "address",
+					"item": [
+						{
+							"name": "addNewAddress",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{userAuth}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"houseDetails\":\"new A-95 sarita sagar\",\r\n    \"landmark\":\"pani ni taki\",\r\n    \"city\":\"surat\",\r\n    \"state\":\"gujarat\",\r\n    \"pincode\":\"395006\",\r\n    \"saveAs\":\"Home\",\r\n    \"long\":\"72.88191676139833\",\r\n    \"lati\":\"21.217830693226748\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/addNewAddress",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"addNewAddress"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "updateUserAddress",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"long\":\"12.123\",\r\n    \"lati\":\"32.321\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/updateUserAddress/692d7c367515256cfbbbb634",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"updateUserAddress",
+										"692d7c367515256cfbbbb634"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "getAllUserAddress",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{userAuth}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/getAllUserAddress",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"getAllUserAddress"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "getUserAddressById",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{userAuth}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/getUserAddressById/692d7c367515256cfbbbb634",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"getUserAddressById",
+										"692d7c367515256cfbbbb634"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "deleteUserAddress",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{userAuth}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/deleteUserAddress/692e768ba4319b0560206f93",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"deleteUserAddress",
+										"692e768ba4319b0560206f93"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "selectUserAddress",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{userAuth}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"addressId\":\"692e769ba4319b0560206f9e\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/selectUserAddress",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"selectUserAddress"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "searchAddress",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{userAuth}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"addressId\":\"692e769ba4319b0560206f9e\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/searchAddress?q=home",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"searchAddress"
+									],
+									"query": [
+										{
+											"key": "q",
+											"value": "home"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "createUser",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"fullName\":\"Vaibhav\",\r\n    \"phone\":\"9652485745\",\r\n    \"email\":\"vaibhav.kalathiyainfotech@gmail.com\",\r\n    \"password\":\"123456\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/createUser",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"createUser"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "userLogin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"vaibhav.kalathiyainfotech@gmail.com\",\r\n    // \"phone\":\"1234567890\",\r\n    \"password\": \"123456\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/userLogin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"userLogin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "userUpdateProfile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "avatar",
+									"type": "file",
+									"src": "/C:/Users/Dtech/Pictures/Saved Pictures/aashram_thumnail.webp",
+									"disabled": true
+								},
+								{
+									"key": "fullName",
+									"value": "vaibhav gohil",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "dhruvin.kalathiyainfotech@gmail.com",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "phone",
+									"value": "1234569854",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/userUpdateProfile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"userUpdateProfile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "socialLogin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"darshan1.kalathiyainfotech@gmail.com\",\r\n    \"fullName\":\"Darshan Dhameliya\",\r\n    \"avatar\":\"https://ui-avatars.com/api/?name=Heet%20Dhameliya&background=random\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/socialLogin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"socialLogin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"darshan1.kalathiyainfotech@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/forgotPassword",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"forgotPassword"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verifyOtp",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"vaibhav.kalathiyainfotech@gmail.com\",\r\n    \"otp\":\"293052\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/verifyOtp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"verifyOtp"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "resetPassword",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"darshan1.kalathiyainfotech@gmail.com\",\r\n    \"password\":\"654321\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/resetPassword",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"resetPassword"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "userPasswordChange",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"oldPassword\":\"1234567\",\r\n    \"newPassword\":\"123456\"\r\n} ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/userPasswordChange",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"userPasswordChange"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllCountry",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getAllCountry",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getAllCountry"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "selectCountry",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/selectCountry/Bangladesh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"selectCountry",
+								"Bangladesh"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getUserProfile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getUserProfile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getUserProfile"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "seller/admin",
+			"item": [
+				{
+					"name": "new/admin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mobileNo\":\"6325147845\",\r\n    \"email\":\"tseadmin@gmail.com\",\r\n    \"password\":\"123456\",\r\n    \"fullName\":\"tesadmin\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/new/admin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"new",
+								"admin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "new/seller",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n   \"fullName\":\"tset\",\r\n    \"mobileNo\":\"9877899875\",\r\n    \"email\":\"test@gmail.com\",\r\n    \"password\":\"123456\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/new/seller",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"new",
+								"seller"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/seller/updateProfile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "avatar",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/julio-samudra-UP3ZeZcOS6M-unsplash (1).jpg"
+								},
+								{
+									"key": "firstName",
+									"value": "Heet Seller",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "lastName",
+									"value": "prajapati",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "email",
+									"value": "dhruvin.kalathiyainfotech@gmail.com",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "mobileNo",
+									"value": "1234569854",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/seller/updateProfile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"updateProfile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/seller/Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"admin.hit.kalathiyainfotech@gmail.com\",\r\n    \"password\":\"123456\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/seller/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"seller",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "seller/forget/password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"dhruvin.kalathiyainfotech@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/seller/forget/password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"forget",
+								"password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verify/seller/otp",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mobileNo\":\"9638601192\",\r\n    \"otp\":\"541691\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/verify/seller/otp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"verify",
+								"seller",
+								"otp"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verify/seller/password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"darshanseller@gmail.com\",\r\n    \"otp\":\"246709\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/seller/verify/forget/password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"verify",
+								"forget",
+								"password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/seller/reset/password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"darshanseller@gmail.com\",\r\n    \"newPassword\":\"darshanseller123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/seller/reset/password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"reset",
+								"password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/seller/change/password",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{seller}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"oldPassword\":\"123456\",\r\n    \"newPassword\":\"123456\"\r\n} ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/seller/change/password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"seller",
+								"change",
+								"password"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Category",
+			"item": [
+				{
+					"name": "createNewCategory",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "categoryImage",
+									"type": "file",
+									"src": "/C:/Users/Dtech/Downloads/1764239210052_1764234793235_download_(44).jfif"
+								},
+								{
+									"key": "name",
+									"value": "TV Accessories",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/createNewCategory",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"createNewCategory"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllCategory",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getAllCategory",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getAllCategory"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getCategoryById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getCategoryById/692fcabb34688981eb914bd4",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getCategoryById",
+								"692fcabb34688981eb914bd4"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateCategoryById",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "categoryImage",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/beach-1868132_1280.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/updateCategoryById/692fbcd39f659f959c76726b",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"updateCategoryById",
+								"692fbcd39f659f959c76726b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteCategory",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/deleteCategory/692fbd1d9f659f959c76726f",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"deleteCategory",
+								"692fbd1d9f659f959c76726f"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "searchCategory",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/searchCategory?q=sm",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"searchCategory"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "sm"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "addChildCategory",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"chaildCategoryId\":\"693fa11322552164cd28dcc9\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/addChildCategory/692fcabb34688981eb914bd4",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"addChildCategory",
+								"692fcabb34688981eb914bd4"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Brand",
+			"item": [
+				{
+					"name": "createBrand",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "brandImage",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/oscar-nord-8l9VxXI28tY-unsplash.jpg"
+								},
+								{
+									"key": "brandName",
+									"value": "Apple",
+									"type": "text"
+								},
+								{
+									"key": "categories",
+									"value": "[\"6932b0ff640e99bc35f520d4\"]",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/createBrand",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"createBrand"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllBrands",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getAllBrands",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getAllBrands"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getBrandsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getBrandsById/692ffceec12f7a6de04f7f5b",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getBrandsById",
+								"692ffceec12f7a6de04f7f5b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateBrandById",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "brandName",
+									"value": "Updated",
+									"type": "text"
+								},
+								{
+									"key": "brandImage",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/spacejoy-YnLJ3rM4VtI-unsplash.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/updateBrandById/692ffceec12f7a6de04f7f5b",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"updateBrandById",
+								"692ffceec12f7a6de04f7f5b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteBrand",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"url\":\"https://electro-ecommerce.s3.ap-south-1.amazonaws.com/uploads/1764751244354-b434d071-9c6f-4fb0-b227-254f6f9d7991-paul-steuber-h8JuuDsMs7U-unsplash.jpg\"\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/deleteBrand/6932b0b6640e99bc35f520c6",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"deleteBrand",
+								"6932b0b6640e99bc35f520c6"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getSellerBrand",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getSellerBrand",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getSellerBrand"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getProductsByBrandId",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getProductsByBrandId/6932b10e640e99bc35f520d9",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getProductsByBrandId",
+								"6932b10e640e99bc35f520d9"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "products",
+			"item": [
+				{
+					"name": "createProduct",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "brand",
+									"value": "69301551ceca0594b30525d9",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "test 2",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "The iPhone 17 Pro Max delivers a new level of performance, design, and camera innovation. Built with an aerospace-grade Titanium frame, the device feels lighter yet more durable than ever. Its edge-to-edge ProMotion display offers stunning clarity, smoother scrolling, and exceptional brightness for both outdoor visibility and cinematic content.\n\nPowered by the next-generation A19 Bionic chip, the iPhone 17 Pro Max delivers unmatched speed, improved graphics performance, and advanced AI processing for real-time enhancements. Whether multitasking, gaming, or capturing high-detail content, the device responds instantly and efficiently.",
+									"type": "text"
+								},
+								{
+									"key": "productBanner",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/41amrp7gg7L._SX342_SY445_QL70_FMwebp_.webp"
+								},
+								{
+									"key": "productBanner",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/createProduct",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"createProduct"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllProduct",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/getAllProduct",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getAllProduct"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getProductById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getProductById/6932722d511c83662f572702",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getProductById",
+								"6932722d511c83662f572702"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getSellerProducts",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:9000/api/getSellerProducts",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"getSellerProducts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateProduct",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "brand",
+									"value": "692ff7ff889774677e4477e6",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "title",
+									"value": "Sony TV",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "description",
+									"value": "best Tv for you",
+									"type": "text"
+								},
+								{
+									"key": "productBanner",
+									"type": "file",
+									"src": "/C:/Users/Dtech/Downloads/717Xxuhty3L._SX625_.jpg"
+								},
+								{
+									"key": "emi",
+									"value": "true",
+									"type": "text"
+								},
+								{
+									"key": "sizes",
+									"value": "[\n  {\n    \"sizeValue\": \"128GB\",\n    \"price\": 154999,\n    \"discountedPrice\": 149999,\n    \"stock\": 10\n  },\n  {\n    \"sizeValue\": \"256GB\",\n    \"price\": 169999,\n    \"discountedPrice\": 159999,\n    \"stock\": 8\n  },\n  {\n    \"sizeValue\": \"512GB\",\n    \"price\": 189999,\n    \"discountedPrice\": 179999,\n    \"stock\": 5\n  }\n]",
+									"type": "text"
+								},
+								{
+									"key": "key_features",
+									"value": "[\n  {\n    \"title\": \"Camera\",\n    \"description\": \"200MP primary sensor with improved night photography\"\n  },\n  {\n    \"title\": \"Battery\",\n    \"description\": \"Fast charging with 40W wired & 25W wireless\"\n  }\n]\n",
+									"type": "text"
+								},
+								{
+									"key": "specification",
+									"value": " [\n    {\n      \"title\": \"General\",\n      \"details\": [\n        { \"key\": \"Brand\", \"value\": \"Apple\" },\n        { \"key\": \"Model\", \"value\": \"iPhone 17 Pro Max\" }\n      ]\n    },\n    {\n      \"title\": \"Display\",\n      \"details\": [\n        { \"key\": \"Size\", \"value\": \"6.9 inches\" },\n        { \"key\": \"Type\", \"value\": \"Super Retina XDR\" }\n      ]\n    }\n  ]",
+									"type": "text"
+								},
+								{
+									"key": "overview",
+									"value": "[\n    { \"key\": \"Stunning Display\", \"value\": \"6.9-inch Super Retina XDR display with 120Hz ProMotion\" },\n    { \"key\": \"Chipset\", \"value\": \"Apple A20 Bionic 3nm\" }\n  ]",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/updateProduct/6932b9f1640e99bc35f520f4",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"updateProduct",
+								"6932b9f1640e99bc35f520f4"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteProduct",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "localhost:9000/api/deleteProduct/69316effdea705934a89d546",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"deleteProduct",
+								"69316effdea705934a89d546"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getProductByCategory",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:9000/api/getProductByCategory/692fcabb34688981eb914bd4",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"getProductByCategory",
+								"692fcabb34688981eb914bd4"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getProductsByBrand",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:9000/api/getProductsByBrand/69301551ceca0594b30525d9",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"getProductsByBrand",
+								"69301551ceca0594b30525d9"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "searchProduct",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "q",
+								"value": "I phone",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/searchProduct",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"searchProduct"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "productFilters",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/productFilters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"productFilters"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "productVarient",
+			"item": [
+				{
+					"name": "createProductVariant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "images",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/Gemini_Generated_Image_9jl0qv9jl0qv9jl0.png"
+								},
+								{
+									"key": "variantTitle",
+									"value": " test I Phone Orgae 6 RAM +126GB",
+									"type": "text"
+								},
+								{
+									"key": "variantDescription",
+									"value": "The iPhone 17 Pro Max delivers a new level of performance, design, and camera innovation. Built with an aerospace-grade Titanium frame, the device feels lighter yet more durable than ever. Its edge-to-edge ProMotion display offers stunning clarity, smoother scrolling, and exceptional brightness for both outdoor visibility and cinematic content.\n\nPowered by the next-generation A19 Bionic chip, the iPhone 17 Pro Max delivers unmatched speed, improved graphics performance, and advanced AI processing for real-time enhancements. Whether multitasking, gaming, or capturing high-detail content, the device responds instantly and efficiently.",
+									"type": "text"
+								},
+								{
+									"key": "productId",
+									"value": "6933ad56a2c3c7b6ab9dace7",
+									"type": "text"
+								},
+								{
+									"key": "colorName",
+									"value": "orange",
+									"type": "text"
+								},
+								{
+									"key": "moreDetails",
+									"value": "[\n  {\n    \"title\": \"Material & Care\",\n    \"details\": [\n      { \"key\": \"Material\", \"value\": \"100% Leather\" },\n      { \"key\": \"Care Instructions\", \"value\": \"Wipe with a dry cloth\" }\n    ]\n  },\n  {\n    \"title\": \"Dimensions\",\n    \"details\": [\n      { \"key\": \"Height\", \"value\": \"3 inches\" },\n      { \"key\": \"display\", \"value\": \"500 grams\" }\n    ]\n  },\n  {\n    \"title\": \"Additional Info\",\n    \"details\": [\n      { \"key\": \"Occasion\", \"value\": \"Casual, Party\" },\n      { \"key\": \"Made In\", \"value\": \"India\" }\n    ]\n  }\n]\n",
+									"type": "text"
+								},
+								{
+									"key": "stock",
+									"value": "10",
+									"type": "text"
+								},
+								{
+									"key": "price",
+									"value": "9000",
+									"type": "text"
+								},
+								{
+									"key": "discountedPrice",
+									"value": "6000",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/createProductVariant",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"createProductVariant"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllProductVariant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:9000/api/getAllProductVariant",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"getAllProductVariant"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getSellerProductVarient",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:9000/api/getSellerProductVarient",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"getSellerProductVarient"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getProductVarientById",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getProductVarientById/6926935392ccea7ff3c7ef04",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getProductVarientById",
+								"6926935392ccea7ff3c7ef04"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateProductVariant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "images",
+									"type": "file",
+									"src": [
+										"/C:/Users/Dtech/Downloads/Samsung Galaxy S30 Ultra2.jpg",
+										"/C:/Users/Dtech/Downloads/Samsung Galaxy S30 Ultra1.jpg"
+									]
+								},
+								{
+									"key": "productId",
+									"value": "69253617d6e682d438296d72",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "colorName",
+									"value": "Black",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "Occasion",
+									"value": "Formal",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "Outer_material",
+									"value": "Suede",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "Type_For_Casual",
+									"value": "Loafers",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "Heel_Height",
+									"value": "1.5 inch",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "weight",
+									"value": "0.7 kg",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "sizes",
+									"value": "[\n  {\n    \"sizeValue\": \"6\",\n    \"stock\": 10,\n    \"price\": 999,\n    \"discountedPrice\": 799\n  },\n  {\n    \"sizeValue\": \"7\",\n    \"stock\": 20,\n    \"price\": 1099,\n    \"discountedPrice\": 899\n  }\n]\n",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "moreDetails",
+									"value": "[\n  {\n    \"title\": \"Material & Care\",\n    \"details\": [\n      { \"key\": \"Material\", \"value\": \"100% Leather\" },\n      { \"key\": \"Care Instructions\", \"value\": \"Wipe with a dry cloth\" }\n    ]\n  },\n  {\n    \"title\": \"Dimensions\",\n    \"details\": [\n      { \"key\": \"Heel Height\", \"value\": \"3 inches\" },\n      { \"key\": \"Weight\", \"value\": \"500 grams\" }\n    ]\n  },\n  {\n    \"title\": \"Additional Info\",\n    \"details\": [\n      { \"key\": \"Occasion\", \"value\": \"Casual, Party\" },\n      { \"key\": \"Made In\", \"value\": \"India\" }\n    ]\n  }\n]\n",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "stock",
+									"value": "101",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "price",
+									"value": "699",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "discountedPrice",
+									"value": "499",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "sizeGuideId",
+									"value": "6920473f1460d4cf90b4957d",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "localhost:9000/api/updateProductVariant/6926a2f4717bd4cd9ee6066b",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"updateProductVariant",
+								"6926a2f4717bd4cd9ee6066b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteProductVariant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "http://localhost:9000/api/deleteProductVariant/6929797408fd8cc67136bfd4",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"deleteProductVariant",
+								"6929797408fd8cc67136bfd4"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getProductVraintByproductId",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getProductVraintByproductId/6932722d511c83662f572702",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getProductVraintByproductId",
+								"6932722d511c83662f572702"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getVraintSizesByColorName",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getVraintSizesByColorName/69329a8383abbf1551772581?name=white",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getVraintSizesByColorName",
+								"69329a8383abbf1551772581"
+							],
+							"query": [
+								{
+									"key": "name",
+									"value": "white"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getProductWiseProductVarientdata",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:7000/api/getProductWiseProductVarientdata/6932b117640e99bc35f520e2",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "7000",
+							"path": [
+								"api",
+								"getProductWiseProductVarientdata",
+								"6932b117640e99bc35f520e2"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Coupon",
+			"item": [
+				{
+					"name": "/admin/createCoupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/createCoupon",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"createCoupon"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllCoupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:9000/api/getAllCoupon",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"getAllCoupon"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllCouponAdmin",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:9000/api/getAllCouponAdmin",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"getAllCouponAdmin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getCouponById",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:9000/api/getCouponById/691eb163352c0a373d99d0f0",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"getCouponById",
+								"691eb163352c0a373d99d0f0"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/admin/updateCoupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "couponImage",
+									"type": "file",
+									"src": "/C:/Users/Dtech/Downloads/Vegetables.png"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:9000/api/admin/updateCoupon/692052c204e6f30823e2afdf",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"admin",
+								"updateCoupon",
+								"692052c204e6f30823e2afdf"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/admin/deleteCoupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearerToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"isPublic\":\"true\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:9000/api/admin/deleteCoupon/68e653758750e9c698e3231d",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"admin",
+								"deleteCoupon",
+								"68e653758750e9c698e3231d"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "apply-coupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"code\": \"DEMO20\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:9000/api/apply-coupon",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"apply-coupon"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "remove-coupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"code\": \"\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:9000/api/remove-coupon",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "9000",
+							"path": [
+								"api",
+								"remove-coupon"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Combo Offer",
+			"item": [
+				{
+					"name": "combo/create",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"title\": \"Winter Combo Offer\",\r\n  \"description\": \"Best combo for winter season\",\r\n  \"discountPercentage\":5,\r\n  \"products\": [\r\n    {\r\n      \"product\": \"6933ad56a2c3c7b6ab9dace7\",\r\n      \"variant\": \"6933ad69a2c3c7b6ab9dacef\",\r\n      \"quantity\": 1\r\n    },\r\n    {\r\n      \"product\": \"6932b117640e99bc35f520e2\",\r\n      \"variant\": \"6932b9f1640e99bc35f520f4\",\r\n      \"quantity\": 1\r\n    }\r\n  ]\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/combo/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"combo",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "combo",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"title\": \"Winter Combo Offer\",\r\n  \"description\": \"Best combo for winter season\",\r\n  \"originalPrice\": 2500,\r\n  \"discountPrice\": 1999,\r\n  \"products\": [\r\n    {\r\n      \"product\": \"6933ad56a2c3c7b6ab9dace7\",\r\n      \"variant\": \"6933ad69a2c3c7b6ab9dacef\",\r\n      \"quantity\": 1,\r\n      \"offerPrice\": 999\r\n    },\r\n    {\r\n      \"product\": \"6932b117640e99bc35f520e2\",\r\n      \"variant\": \"6932b9f1640e99bc35f520f4\",\r\n      \"quantity\": 2,\r\n      \"offerPrice\": 500\r\n    }\r\n  ]\r\n}\r\n"
+						},
+						"url": {
+							"raw": "{{base_url}}/getAllCombos",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getAllCombos"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getComboById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getComboById/6933ad80a2c3c7b6ab9dacf8",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getComboById",
+								"6933ad80a2c3c7b6ab9dacf8"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "combo/seller",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/combo/seller",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"combo",
+								"seller"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateCombo",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"title\":\"updated winter Offer\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/updateCombo/6933ad80a2c3c7b6ab9dacf8",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"updateCombo",
+								"6933ad80a2c3c7b6ab9dacf8"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "combo/toggle",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/combo/toggle/6933ad80a2c3c7b6ab9dacf8",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"combo",
+								"toggle",
+								"6933ad80a2c3c7b6ab9dacf8"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "combo/apply",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/combo/apply/6933ad80a2c3c7b6ab9dacf8",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"combo",
+								"apply",
+								"6933ad80a2c3c7b6ab9dacf8"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "product/:productId/combos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/product/6932b117640e99bc35f520e2/combos",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"product",
+								"6932b117640e99bc35f520e2",
+								"combos"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Cart",
+			"item": [
+				{
+					"name": "cart/add",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"productId\":\"6932722d511c83662f572702\",\r\n    \"variantId\":\"69329e317c140963c4f23ec7\",\r\n    \"quantity\":1,\r\n    \"courierService\":\"standard\",\r\n    // \"comboId\":\"6933ad80a2c3c7b6ab9dacf8\",\r\n    // \"selectedColor\":\"blue\",\r\n    \"selectedSize\":\"S\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/cart/add",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"add"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "myCart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/myCart",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"myCart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "cart/update",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"cartItemId\":\"69365664c58bf7f8f6d6b47d\",\r\n    \"quantity\":5\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/cart/update",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "cart/clear",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/cart/clear",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"clear"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "cart/remove",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/cart/remove/6936b45b0074b5b92b2ae198",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"remove",
+								"6936b45b0074b5b92b2ae198"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "cart/apply-combo",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"quantity\":1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/cart/apply-combo/6937ba00e2559fbadb539172",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"apply-combo",
+								"6937ba00e2559fbadb539172"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "cart/remove-combo",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/cart/remove-combo/6933ad80a2c3c7b6ab9dacf8",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"remove-combo",
+								"6933ad80a2c3c7b6ab9dacf8"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "billing/preview",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/billing/preview",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"billing",
+								"preview"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "apply-coupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"couponCode\":\"DEMO12\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/cart/apply-coupon",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"apply-coupon"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "remove-coupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/cart/remove-coupon",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"cart",
+								"remove-coupon"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "orders",
+			"item": [
+				{
+					"name": "orders",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"paymentMethod\":\"razorpay\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/order/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "order/my-orders",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/order/my-orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								"my-orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "order/:orderId",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/order/ORD-1765261873728-0974",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								"ORD-1765261873728-0974"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "order/details/:mongoId",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/order/details/6937c1b8ee5a3ccf6f34d6fe",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								"details",
+								"6937c1b8ee5a3ccf6f34d6fe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "order/:orderId/status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{sellerAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"status\":\"returned\",\r\n    \"notes\":\"returned from admin\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/order/:orderId/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								":orderId",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": "ORD-1765264419407-4984"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "order/:orderId/cancel",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"reason\":\"i want to canle\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/order/:orderId/cancel",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								":orderId",
+								"cancel"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": "ORD-1765264419407-4984"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "/order/:orderId/return",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"reason\":\"A have already\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/order/:orderId/return",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								":orderId",
+								"return"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": "ORD-1765264419407-4984"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "order/admin/all-orders",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/order/admin/all-orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								"admin",
+								"all-orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "order/:orderId/item/:itemId/status",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/order/:orderId/item/:itemId/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"order",
+								":orderId",
+								"item",
+								":itemId",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": ""
+								},
+								{
+									"key": "itemId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "payment",
+			"item": [
+				{
+					"name": "payment/:orderId/initiate",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payment/:orderId/initiate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment",
+								":orderId",
+								"initiate"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": "ORD-1765351793607-7212"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "payment/:orderId/verify",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"razorpay_payment_id\": \"pay_RqA0iby8K8qXMs\",\r\n    \"razorpay_order_id\": \"order_RqA0OvVmcFubZv\",\r\n    \"razorpay_signature\": \"87682636cb3c24d195a3e6ff3c2efc6a0ac2ae469fc4623922d95b4fc1fd7fb9\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/payment/:orderId/verify",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment",
+								":orderId",
+								"verify"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": "ORD-1765424455939-2266"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "payment/:orderId/initiate-emi",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"tenure\":3\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/payment/:orderId/initiate-emi",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment",
+								":orderId",
+								"initiate-emi"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": "ORD-1765261752154-5740"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "payment/:orderId/status",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"status\":\"delivered\",\r\n    \"notes\":\"cdelivery opw mother\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/payment/:orderId/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment",
+								":orderId",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": "ORD-1765351161465-8175"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "payment/:orderId/refund",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    // \"amount\":\"\",\r\n    \"reason\":\"i want to refund i have already\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/payment/:orderId/refund",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment",
+								":orderId",
+								"refund"
+							],
+							"variable": [
+								{
+									"key": "orderId",
+									"value": "ORD-1765264419407-4984"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "payment/webhook",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payment/webhook",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payment",
+								"webhook"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Home page API",
+			"item": [
+				{
+					"name": "create HomePage Banner",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "OFFER",
+									"type": "text"
+								},
+								{
+									"key": "banners",
+									"type": "file",
+									"src": [
+										"/C:/Users/Admin/Downloads/lukmanul-hm-xBm8KZS_mHM-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/ryunosuke-kikuno-cFxUZ7UAf-c-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/europeana-TjegK_z-0j8-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/kushali-bhagat-jGhUmgQwnG4-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/indra-projects-sM8LaL9839A-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/agata-create-fQ2XuWjSzfE-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/abdullah-guc-WLn24c5BOvk-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/khadeeja-yasser-dz9lOU2hdJY-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/kimberley-alpuerto-gYCj5LrI9wI-unsplash.jpg"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/heroBanner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"heroBanner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllBanner",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getAllBanner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getAllBanner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateBanner",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "OFFER",
+									"type": "text"
+								},
+								{
+									"key": "banners",
+									"type": "file",
+									"src": [
+										"/C:/Users/Admin/Downloads/sdf-rahbar-dw7paFI1jnM-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/i-m-zion-dIdWiMTZdto-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/oscar-nord-8l9VxXI28tY-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/spacejoy-YnLJ3rM4VtI-unsplash.jpg",
+										"/C:/Users/Admin/Downloads/beach-1868132_1280.jpg",
+										"/C:/Users/Admin/Downloads/smiling-men-3786866_1280.jpg",
+										"/C:/Users/Admin/Downloads/cart-3248227_1280.jpg",
+										"/C:/Users/Admin/Downloads/dinner-1433494_1280.jpg",
+										"/C:/Users/Admin/Downloads/electric-iron-5112_1280.jpg"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/updateBanner/6938f28d4d93a4d34cf8be04",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"updateBanner",
+								"6938f28d4d93a4d34cf8be04"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteBanner",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/deleteBanner/69390759f1c28f40d69747df",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"deleteBanner",
+								"69390759f1c28f40d69747df"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "newArrival",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/newArrival",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"newArrival"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "bestSellers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/bestSellers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"bestSellers"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "trending-deals",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/trending-deals",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"trending-deals"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "grabNowDeals",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/grabNowDeals",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"grabNowDeals"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "createOfferBanner",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "offerImage",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/europeana-TjegK_z-0j8-unsplash.jpg"
+								},
+								{
+									"key": "title",
+									"value": "winter sales",
+									"type": "text"
+								},
+								{
+									"key": "productId",
+									"value": "6932b117640e99bc35f520e2",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/createOfferBanner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"createOfferBanner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllOfferBanners",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getAllOfferBanners",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getAllOfferBanners"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateOfferBanner",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "offerImage",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/indra-projects-sM8LaL9839A-unsplash.jpg"
+								},
+								{
+									"key": "title",
+									"value": "Update",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/updateOfferBanner/693b9b517e01d7dc4f893f8e",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"updateOfferBanner",
+								"693b9b517e01d7dc4f893f8e"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteOfferBanner",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/deleteOfferBanner/693b9b517e01d7dc4f893f8e",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"deleteOfferBanner",
+								"693b9b517e01d7dc4f893f8e"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "filtter",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/filter?rating=1&sort=popular",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"filter"
+							],
+							"query": [
+								{
+									"key": "categoryId",
+									"value": "692fcd616af751e1b5244e5f",
+									"disabled": true
+								},
+								{
+									"key": "brandId",
+									"value": "69301551ceca0594b30525d9",
+									"disabled": true
+								},
+								{
+									"key": "minPrice",
+									"value": "707",
+									"disabled": true
+								},
+								{
+									"key": "maxPrice",
+									"value": "600",
+									"disabled": true
+								},
+								{
+									"key": "color",
+									"value": "blue",
+									"disabled": true
+								},
+								{
+									"key": "size",
+									"value": "M",
+									"disabled": true
+								},
+								{
+									"key": "minPrice",
+									"value": "4000",
+									"disabled": true
+								},
+								{
+									"key": "maxPrice",
+									"value": "6000",
+									"disabled": true
+								},
+								{
+									"key": "rating",
+									"value": "1"
+								},
+								{
+									"key": "sort",
+									"value": "popular"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "review",
+			"item": [
+				{
+					"name": "createReview",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "productId",
+									"value": "68e38c8a536f958de7b7e414",
+									"type": "text"
+								},
+								{
+									"key": "variantId",
+									"value": "68e39277536f958de7b7e44b",
+									"type": "text"
+								},
+								{
+									"key": "overallRating",
+									"value": "4",
+									"type": "text"
+								},
+								{
+									"key": "love_about",
+									"value": "[{\"point\":\"Accuracy\",\"rate\":5},{\"point\":\"Durability\",\"rate\":4}]",
+									"type": "text"
+								},
+								{
+									"key": "comment",
+									"value": "splsflslf",
+									"type": "text"
+								},
+								{
+									"key": "media",
+									"type": "file",
+									"src": "/C:/Users/Dtech/Downloads/1762240884549_12.jfif"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/createReview",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"createReview"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateReview",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "productId",
+									"value": "68d39250ec25c7b80fbd01e5",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "overallRating",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "love_about",
+									"value": "[{\"point\":\"Sleek Design\",\"rate\":0}]",
+									"type": "text"
+								},
+								{
+									"key": "comment",
+									"value": "sgsgsgs",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "media",
+									"type": "file",
+									"src": [
+										"/C:/Users/Dtech/Downloads/1762240884549_12.jfif",
+										"/C:/Users/Dtech/Downloads/1754290124005.mp4"
+									],
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/updateReview/6913070333523f0a3b4ad435",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"updateReview",
+								"6913070333523f0a3b4ad435"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteReview",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/deleteReview/69159b592cc5b9f5b606a2ff",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"deleteReview",
+								"69159b592cc5b9f5b606a2ff"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getProductReviews",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getProductReviews/68e38c8a536f958de7b7e414?rating=2&page=1&variantId=68e39277536f958de7b7e44b",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getProductReviews",
+								"68e38c8a536f958de7b7e414"
+							],
+							"query": [
+								{
+									"key": "rating",
+									"value": "2"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "variantId",
+									"value": "68e39277536f958de7b7e44b"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "checkUserReview",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/checkUserReview/692697f492ccea7ff3c7f061/6926ce84d16c40b00a6de04b",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"checkUserReview",
+								"692697f492ccea7ff3c7f061",
+								"6926ce84d16c40b00a6de04b"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "likeReview",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/likeReview/68e4ab7b39a726bbfa279db4",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"likeReview",
+								"68e4ab7b39a726bbfa279db4"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "dislikeReview",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/dislikeReview/68d3d74f9dd13269d054f31c",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"dislikeReview",
+								"68d3d74f9dd13269d054f31c"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "wishlist",
+			"item": [
+				{
+					"name": "addToWishlist",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/addToWishlist/6931752d09f076433f0f490a",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"addToWishlist",
+								"6931752d09f076433f0f490a"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getWishlist",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/getWishlist",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getWishlist"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "removeFromWishlist",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{userAuth}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/removeFromWishlist/6931752d09f076433f0f490a",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"removeFromWishlist",
+								"6931752d09f076433f0f490a"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "config",
+			"item": [
+				{
+					"name": "list",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "upload",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/marios-gkortsilas-v-yctrWmRHo-unsplash.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"url\":\"https://electro-ecommerce.s3.ap-south-1.amazonaws.com/uploads/1765780592829-73802e78-d955-4379-83f3-ade127269689-1764234793235_download_(44).jfif\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/delete",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"delete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteMany",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"images\": [             \"https://electro-ecommerce.s3.ap-south-1.amazonaws.com/users/1765783140790-8646582b-2f64-4fb5-9a48-b8a782a99b15-aashram_thumnail.webp\"\r\n        ]}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/deleteMany",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"deleteMany"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "oldKey",
+									"value": "https://electro-ecommerce.s3.ap-south-1.amazonaws.com/uploads/1764668689828-d7907010-0b18-4bfd-90f7-345c79c0b937-smiling-men-3786866_1280.jpg",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/Admin/Downloads/snow-mountain-9614087.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/update",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"update"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
