@@ -162,13 +162,13 @@ export const searchCategory = async (req, res) => {
 export const addChildCategory = async (req, res) => {
   try {
     const { parentId } = req.params
-    const { chaildCategoryId } = req.body
+    const { childCategoryId } = req.body
 
     if (!mongoose.Types.ObjectId.isValid(parentId)) {
       return sendBadRequestResponse(res, "Invalid parentId")
     }
 
-    if (!mongoose.Types.ObjectId.isValid(chaildCategoryId)) {
+    if (!mongoose.Types.ObjectId.isValid(childCategoryId)) {
       return sendBadRequestResponse(res, "Invalid chaildCategoryId")
     }
 
@@ -177,7 +177,7 @@ export const addChildCategory = async (req, res) => {
       return sendBadRequestResponse(res, "Parent category not found")
     }
 
-    const childCategory = await categoryModel.findById(chaildCategoryId)
+    const childCategory = await categoryModel.findById(childCategoryId)
     if (!childCategory) {
       return sendBadRequestResponse(res, "Child category not found")
     }

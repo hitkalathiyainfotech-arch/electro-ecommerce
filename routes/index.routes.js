@@ -74,7 +74,7 @@ indexRoutes.post("/addChildCategory/:parentId", adminAuth, addChildCategory);
 
 //brand 
 indexRoutes.post("/createBrand", sellerAndAdminAuth, upload.single("brandImage"), createBrand)
-indexRoutes.get("/getAllBarnds", getAllBrands)
+indexRoutes.get("/getAllBrands", getAllBrands)
 indexRoutes.get("/getSellerBrand", sellerAuth, getSellerBrands);
 indexRoutes.get("/getBrandsById/:id", getBrandsById)
 indexRoutes.put("/updateBrandById/:id", sellerAndAdminAuth, upload.single("brandImage"), updateBrandById)
