@@ -4,6 +4,7 @@ import productModel from "../models/product.model.js";
 import productVarientModel from "../models/productVarient.model.js";
 import { sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js";
 import { createProductVariant } from "./productVariant.controller.js";
+import reviewModel from "../models/review.model.js";
 
 export const newArrival = async (req, res) => {
   try {
@@ -169,126 +170,188 @@ export const grabNowDeals = async (req, res) => {
   }
 };
 
-
 export const getFiltteredProducts = async (req, res) => {
   try {
     const {
-      categories,
-      brand,
+      q,
+      categoryId,
+      brandId,
       minPrice,
       maxPrice,
       color,
       size,
-      storage,
-      ram,
-      sort,
-      page = 1,
-      limit = 20
-    } = req.query
+      rating,
+      sort
+    } = req.query;
 
-    const matchProduct = { isActive: true }
-    const matchVariant = {}
+    const min = minPrice ? Number(minPrice) : null;
+    const max = maxPrice ? Number(maxPrice) : null;
+    const minRating = rating ? Number(rating) : null;
 
-    if (categories)
-      matchProduct.categories = {
-        $in: categories.split(",").map(id => new mongoose.Types.ObjectId(id))
-      }
+    const matchQuery = { isActive: true };
 
-    if (brand)
-      matchProduct.brand = {
-        $in: brand.split(",").map(id => new mongoose.Types.ObjectId(id))
-      }
-
-    const priceFilter = {}
-    if (minPrice) priceFilter.$gte = Number(minPrice)
-    if (maxPrice) priceFilter.$lte = Number(maxPrice)
-
-    if (minPrice || maxPrice) {
-      matchVariant.$or = [
-        { "color.price": priceFilter },
-        { "color.discountedPrice": priceFilter },
-        { "color.sizes.price": priceFilter },
-        { "color.sizes.discountedPrice": priceFilter }
-      ]
+    if (q && q.trim()) {
+      matchQuery.$or = [
+        { title: { $regex: q.trim(), $options: "i" } },
+        { description: { $regex: q.trim(), $options: "i" } }
+      ];
     }
 
-    if (color)
-      matchVariant["color.colorName"] = { $in: color.split(",") }
+    let brandIds = [];
 
-    if (size)
-      matchVariant["color.sizes.sizeValue"] = { $in: size.split(",") }
+    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+      const brands = await brandModel.find(
+        { categories: new mongoose.Types.ObjectId(categoryId) },
+        { _id: 1 }
+      );
 
-    if (storage)
-      matchVariant["specification.details"] = {
-        $elemMatch: {
-          key: { $regex: "storage|rom|internal", $options: "i" },
-          value: { $regex: storage.split(",").join("|"), $options: "i" }
-        }
-      }
-
-    if (ram)
-      matchVariant["specification.details"] = {
-        $elemMatch: {
-          key: { $regex: "ram|memory", $options: "i" },
-          value: { $regex: ram.split(",").join("|"), $options: "i" }
-        }
-      }
-
-    const pipeline = [
-      { $match: matchProduct },
-      {
-        $lookup: {
-          from: "productvariants",
-          localField: "_id",
-          foreignField: "productId",
-          as: "variants"
-        }
-      },
-      { $unwind: "$variants" }
-    ]
-
-    if (Object.keys(matchVariant).length) {
-      const transformedVariantFilter = {}
-      for (const key in matchVariant) transformedVariantFilter[`variants.${key}`] = matchVariant[key]
-      pipeline.push({ $match: transformedVariantFilter })
+      brandIds = brands.map(b => b._id);
+      matchQuery.categories = new mongoose.Types.ObjectId(categoryId);
     }
 
-    pipeline.push(
-      {
-        $group: {
-          _id: "$_id",
-          product: { $first: "$$ROOT" },
-          variants: { $push: "$variants" }
+    if (brandId && mongoose.Types.ObjectId.isValid(brandId)) {
+      matchQuery.brand = new mongoose.Types.ObjectId(brandId);
+    } else if (brandIds.length > 0) {
+      matchQuery.brand = { $in: brandIds };
+    }
+
+    let products = await productModel.find(matchQuery)
+      .populate("brand")
+      .populate("categories")
+      .populate("sellerId", "firstName mobileNo email avatar role")
+      .populate("variantId")
+      .sort({ createdAt: -1 });
+
+    if (min !== null || max !== null || color || size) {
+      products = products
+        .map(product => {
+          const variants = product.variantId.filter(variant => {
+            let ok = true;
+
+            const prices =
+              variant.color.sizes && variant.color.sizes.length > 0
+                ? variant.color.sizes.map(s =>
+                  s.discountedPrice !== null ? s.discountedPrice : s.price
+                )
+                : [
+                  variant.color.discountedPrice !== null
+                    ? variant.color.discountedPrice
+                    : variant.color.price
+                ];
+
+            if (min !== null) ok = ok && prices.some(p => p >= min);
+            if (max !== null) ok = ok && prices.some(p => p <= max);
+
+            if (color) {
+              ok =
+                ok &&
+                variant.color.colorName.toLowerCase() ===
+                color.toLowerCase();
+            }
+
+            if (size) {
+              ok =
+                ok &&
+                variant.color.sizes &&
+                variant.color.sizes.some(s => s.sizeValue === size);
+            }
+
+            return ok;
+          });
+
+          if (variants.length > 0) {
+            product.variantId = variants;
+            return product;
+          }
+          return null;
+        })
+        .filter(Boolean);
+    }
+
+    if (minRating !== null) {
+      const productIds = products.map(p => p._id);
+
+      const ratingAgg = await reviewModel.aggregate([
+        { $match: { productId: { $in: productIds } } },
+        {
+          $group: {
+            _id: "$productId",
+            avgRating: { $avg: "$overallRating" },
+            totalReviews: { $sum: 1 }
+          }
+        },
+        {
+          $match: {
+            avgRating: { $gte: minRating }
+          }
         }
-      },
-      { $project: { product: 1, variants: 1 } }
-    )
+      ]);
 
-    if (sort === "price_low")
-      pipeline.push({ $sort: { "variants.color.price": 1 } })
+      const ratingMap = {};
+      ratingAgg.forEach(r => {
+        ratingMap[r._id.toString()] = {
+          avgRating: Number(r.avgRating.toFixed(1)),
+          totalReviews: r.totalReviews
+        };
+      });
 
-    if (sort === "price_high")
-      pipeline.push({ $sort: { "variants.color.price": -1 } })
+      products = products
+        .filter(p => ratingMap[p._id.toString()])  // <- only products with reviews >= minRating
+        .map(p => {
+          p._doc.rating = ratingMap[p._id.toString()];
+          return p;
+        });
+    }
 
-    if (sort === "latest")
-      pipeline.push({ $sort: { "product.createdAt": -1 } })
 
-    if (sort === "popular")
-      pipeline.push({ $sort: { "product.sold": -1 } })
+    if (sort) {
+      if (sort === "latest") {
+        products.sort((a, b) => b.createdAt - a.createdAt);
+      }
 
-    pipeline.push({ $skip: (page - 1) * limit })
-    pipeline.push({ $limit: Number(limit) })
+      if (sort === "popular") {
+        products.sort(
+          (a, b) =>
+            (b.rating?.totalReviews || 0) -
+            (a.rating?.totalReviews || 0)
+        );
+      }
 
-    const data = await productModel.aggregate(pipeline)
+      if (sort === "rating") {
+        products.sort(
+          (a, b) =>
+            (b.rating?.avgRating || 0) -
+            (a.rating?.avgRating || 0)
+        );
+      }
 
-    return res.status(200).json({ success: true, count: data.length, data })
+      if (sort === "priceLow") {
+        products.sort(
+          (a, b) =>
+            a.variantId[0]?.color?.discountedPrice -
+            b.variantId[0]?.color?.discountedPrice
+        );
+      }
+
+      if (sort === "priceHigh") {
+        products.sort(
+          (a, b) =>
+            b.variantId[0]?.color?.discountedPrice -
+            a.variantId[0]?.color?.discountedPrice
+        );
+      }
+    }
+
+    return sendSuccessResponse(res, "Products fetched successfully", {
+      total: products.length,
+      products
+    });
+
   } catch (error) {
-    return sendErrorResponse(
-      res,
-      500,
-      "Error while fetching filtered products",
-      error
-    )
+    console.log("error while filtering products", error);
+    return sendErrorResponse(res, 500, "Error while filtering products", error);
   }
-}
+};
+
+
 

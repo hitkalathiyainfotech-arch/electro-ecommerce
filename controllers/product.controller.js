@@ -7,6 +7,9 @@ import brandModel from "../models/brand.model.js";
 import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/response.utils.js";
 import { deleteFromS3, updateS3, uploadToS3 } from "../utils/s3Service.js";
 import productVarientModel from "../models/productVarient.model.js";
+import categoryModel from "../models/category.model.js";
+import productModel from "../models/product.model.js";
+import reviewModel from "../models/review.model.js";
 
 export const createProduct = async (req, res) => {
   try {
@@ -22,7 +25,7 @@ export const createProduct = async (req, res) => {
     if (!seller) return sendNotFoundResponse(res, "Seller not found");
 
     if (!seller.brandId || seller.brandId.length === 0) {
-      return sendBadRequestResponse(res, "Please add a brand first");
+      return sendBadRequestResponse(res, "Please add a brand first Or this not createdBy You");
     }
 
     if (!brand) return sendBadRequestResponse(res, "Brand is required");
@@ -334,6 +337,98 @@ export const getProductByCategory = async (req, res) => {
   }
 };
 
+export const getProductFilters = async (req, res) => {
+  try {
+    const categories = await categoryModel.find({}, { name: 1 });
+    const brands = await brandModel.find({}, { brandName: 1 });
+
+    const priceAgg = await productVarientModel.aggregate([
+      {
+        $project: {
+          allPrices: {
+            $concatArrays: [
+              [
+                {
+                  $ifNull: [
+                    "$color.discountedPrice",
+                    "$color.price"
+                  ]
+                }
+              ],
+              {
+                $map: {
+                  input: "$color.sizes",
+                  as: "s",
+                  in: {
+                    $ifNull: ["$$s.discountedPrice", "$$s.price"]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      { $unwind: "$allPrices" },
+      {
+        $group: {
+          _id: null,
+          minPrice: { $min: "$allPrices" },
+          maxPrice: { $max: "$allPrices" }
+        }
+      }
+    ]);
+
+    const colorAgg = await productVarientModel.aggregate([
+      { $match: { "color.colorName": { $ne: null } } },
+      { $group: { _id: "$color.colorName" } }
+    ]);
+
+    const sizeAgg = await productVarientModel.aggregate([
+      { $unwind: "$color.sizes" },
+      { $group: { _id: "$color.sizes.sizeValue" } }
+    ]);
+
+    const ratingAgg = await reviewModel.aggregate([
+      {
+        $group: {
+          _id: "$productId",
+          avgRating: { $avg: "$overallRating" }
+        }
+      },
+      {
+        $project: {
+          roundedRating: {
+            $ceil: "$avgRating"
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$roundedRating",
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]);
+
+    return sendSuccessResponse(res, "Product filters fetched successfully", {
+      categories,
+      brands,
+      priceRange: priceAgg[0] || { minPrice: 0, maxPrice: 0 },
+      colors: colorAgg.map(c => c._id),
+      sizes: sizeAgg.map(s => s._id),
+      ratings: ratingAgg.map(r => ({
+        rating: r._id,
+        count: r.count
+      }))
+    });
+
+  } catch (error) {
+    console.log("error while getProductFilters", error.message);
+    return sendErrorResponse(res, 500, "Error while getProductFilters", error);
+  }
+};
+
 export const getProductsByBrand = async (req, res) => {
   try {
     const { brandId } = req.params;
@@ -360,6 +455,58 @@ export const getProductsByBrand = async (req, res) => {
     return sendErrorResponse(res, 500, error.message);
   }
 };
+
+export const searchProducts = async (req, res) => {
+  try {
+    const { q, categoryId } = req.query
+
+    let categoryIds = []
+
+    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+      const childCategories = await categoryModel.find(
+        { parentCategory: categoryId },
+        { _id: 1 }
+      )
+
+      if (childCategories.length > 0) {
+        categoryIds = childCategories.map(c => c._id)
+      } else {
+        categoryIds = [categoryId]
+      }
+    }
+
+    const matchQuery = {
+      isActive: true
+    }
+
+    if (q && q.trim()) {
+      matchQuery.$or = [
+        { title: { $regex: q.trim(), $options: "i" } },
+        { description: { $regex: q.trim(), $options: "i" } }
+      ]
+    }
+
+    if (categoryIds.length > 0) {
+      matchQuery.categories = { $in: categoryIds }
+    }
+
+    const products = await productModel.find(matchQuery)
+      .populate("brand")
+      .populate("categories")
+      .populate("sellerId", "firstName mobileNo email avatar role")
+      .sort({ createdAt: -1 })
+
+    return sendSuccessResponse(res, "Products fetched successfully", {
+      total: products.length,
+      products
+    })
+
+  } catch (error) {
+    console.log("error while searchProducts", error.message)
+    return sendErrorResponse(res, 500, "error while searchProducts", error)
+  }
+}
+
 
 export const getProductVraintByproductId = async (req, res) => {
   try {

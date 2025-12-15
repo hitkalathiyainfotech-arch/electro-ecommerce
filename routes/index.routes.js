@@ -8,7 +8,7 @@ import { upload } from '../helper/imageUplode.js';
 import { addChildCategory, createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
 import { createBrand, deleteBrand, getAllBrands, getBrandsById, getProductsByBrandId, getSellerBrands, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/wishlist.controller.js';
-import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductsByBrand, getProductVraintByproductId, getSellerProducts, getVraintSizesByColorName, updateProduct } from '../controllers/product.controller.js';
+import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductFilters, getProductsByBrand, getProductVraintByproductId, getSellerProducts, getVraintSizesByColorName, searchProducts, updateProduct } from '../controllers/product.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, getSellerProductVarient, updateProductVariant } from '../controllers/productVariant.controller.js';
 import comboController from '../controllers/combo.controller.js';
 import cartController from '../controllers/cart.controller.js';
@@ -42,7 +42,9 @@ indexRoutes.delete("/deleteUserAddress/:id", UserAuth, deleteUserAddress);
 indexRoutes.post("/selectUserAddress", UserAuth, selectUserAddress);
 indexRoutes.get("/searchAddress", UserAuth, searchAddress);
 
+// profile section
 indexRoutes.get("/getUserProfile", UserAuth, getUserProfile)
+
 
 //seller.router.js
 indexRoutes.post("/new/admin", createAdminController)
@@ -90,8 +92,9 @@ indexRoutes.get("/getSellerProducts", sellerAndAdminAuth, getSellerProducts);
 indexRoutes.patch("/updateProduct/:id", sellerAndAdminAuth, upload.array("productBanner", 10), updateProduct);
 indexRoutes.delete("/deleteProduct/:id", sellerAndAdminAuth, deleteProduct)
 indexRoutes.get("/getProductByCategory/:categoryId", getProductByCategory)
-indexRoutes.get("/getProductsByBrand/:brandId", getProductsByBrand)
-
+indexRoutes.get("/getProductsByBrand/:brandId", getProductsByBrand);
+indexRoutes.get("/productFilters", getProductFilters);
+indexRoutes.get("/searchProduct", searchProducts)
 
 // filtter producrts
 indexRoutes.get("/filter", getFiltteredProducts)
