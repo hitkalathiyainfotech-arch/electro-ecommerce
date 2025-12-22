@@ -823,60 +823,47 @@ export const selectUserAddress = async (req, res) => {
 }
 
 export const searchAddress = async (req, res) => {
-  try {
-    const userId = req.user._id
-    const { q } = req.query
-
-    if (!q || !q.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Search query required"
-      })
-    }
-
-    const regex = new RegExp(q.trim(), "i")
-
-    const user = await userModel.findOne(
-      { _id: userId },
-      {
-        address: {
-          $filter: {
-            input: "$address",
-            as: "addr",
-            cond: {
-              $or: [
-                { $regexMatch: { input: "$$addr.houseDetails", regex } },
-                { $regexMatch: { input: "$$addr.landmark", regex } },
-                { $regexMatch: { input: "$$addr.city", regex } },
-                { $regexMatch: { input: "$$addr.state", regex } },
-                { $regexMatch: { input: "$$addr.pincode", regex } },
-                { $regexMatch: { input: "$$addr.saveAs", regex } }
-              ]
-            }
-          }
-        }
-      }
-    )
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      })
-    }
-
-    res.status(200).json({
-      success: true,
-      total: user.address.length,
-      data: user.address
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  const { q } = req.query;
+  if (!q || q.trim().length === 0) {
+    return res.status(400).json({ success: false, message: "Query is required" });
   }
-}
+
+  try {
+    const response = await axios.get("https://nominatim.openstreetmap.org/search", {
+      params: {
+        q,
+        format: "json",
+        addressdetails: 1,
+        limit: 10
+      },
+      headers: {
+        "User-Agent": "YourAppName/1.0"
+      }
+    });
+
+    const results = response.data.map(item => ({
+      place_id: item.place_id,
+      name: item.display_name.split(",")[0],
+      address: item.display_name,
+      location: {
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon)
+      },
+      type: item.type,
+      category: item.class
+    }));
+
+    res.json({
+      success: true,
+      query: q,
+      results,
+      count: results.length,
+      status: results.length ? "OK" : "ZERO_RESULTS"
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Error fetching address", error: err.message });
+  }
+};
 
 
 export const getUserProfile = async (req, res) => {
