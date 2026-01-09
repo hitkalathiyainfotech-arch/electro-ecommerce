@@ -346,7 +346,7 @@ export const forgotPassword = async (req, res) => {
       return sendNotFoundResponse(res, "User not found");
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000);
+    const otp = Math.floor(1000 + Math.random() * 9000);
     const expiry = Date.now() + 5 * 60 * 1000;
 
     user.otp = otp;
