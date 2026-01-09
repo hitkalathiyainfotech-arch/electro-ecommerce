@@ -3,26 +3,67 @@ import bannerModel from "../models/banner.model.js";
 import { sendBadRequestResponse, sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js";
 import { deleteFromS3, uploadToS3 } from "../utils/s3Service.js";
 
-export const createHeroBanner = async (req, res) => {
+export const createHomeBanner = async (req, res) => {
   try {
-    const files = req.files;
     const { name } = req.body;
+    const files = req.files;
 
-    if (!files || files.length === 0)
-      return sendBadRequestResponse(res, "No banner images provided");
+    if (!name) {
+      return sendBadRequestResponse(res, "Banner name is required");
+    }
 
-    const uploaded = await Promise.all(files.map((file) => uploadToS3(file)));
+    if (!files || files.length === 0) {
+      return sendBadRequestResponse(res, "Banner images required");
+    }
 
-    const banners = uploaded.map((file) => ({ banner: file }));
+    const uploadedBanners = [];
 
-    const data = await bannerModel.create({
-      name: name || "TEST",
-      banner: banners
+    for (const file of files) {
+      const uploaded = await uploadToS3(file, "home-banners");
+      uploadedBanners.push({ banner: uploaded });
+    }
+
+    const banner = await bannerModel.create({
+      name,
+      banner: uploadedBanners
     });
 
-    return sendSuccessResponse(res, "Hero Banner created successfully", data);
+    return sendSuccessResponse(
+      res,
+      "Home banner created successfully",
+      banner
+    );
   } catch (error) {
-    return sendErrorResponse(res, 500, "Error while createHeroBanner", error);
+    return sendErrorResponse(res, 500, "Error creating home banner", error);
+  }
+};
+
+export const getHomeBanners = async (req, res) => {
+  try {
+    const banners = await bannerModel.find({});
+
+    const response = {
+      heroBanner: null,
+      offerBanner: null
+    };
+
+    banners.forEach((item) => {
+      if (item.name === "heroBanner") {
+        response.heroBanner = item.banner;
+      }
+
+      if (item.name === "offerBanner") {
+        response.offerBanner = item.banner;
+      }
+    });
+
+    return sendSuccessResponse(
+      res,
+      "Home banners fetched successfully",
+      response
+    );
+  } catch (error) {
+    return sendErrorResponse(res, 500, "Error fetching home banners", error);
   }
 };
 
@@ -37,68 +78,65 @@ export const getAllBanners = async (req, res) => {
   }
 }
 
-export const updateBanner = async (req, res) => {
+export const updateBannerByName = async (req, res) => {
   try {
-    const { name } = req.body
-    const files = req.files
-    const { id } = req.params
+    const { name } = req.params;
+    const files = req.files;
 
-    if (!id) return sendBadRequestResponse(res, "Banner ID required")
-    if (!mongoose.Types.ObjectId.isValid(id)) return sendBadRequestResponse(res, "Invalid Banner ID")
+    const banner = await bannerModel.findOne({ name });
+    if (!banner)
+      return sendBadRequestResponse(res, "Banner not found");
 
-    const banner = await bannerModel.findById(id)
-    if (!banner) return sendBadRequestResponse(res, "Banner not found")
-
-    if (banner.banner.length > 0) {
-      for (const b of banner.banner) {
-        const key = b.banner.split(".com/")[1]
-        await deleteFromS3(key)
-      }
-    }
-
-    const newBanners = []
     if (files && files.length > 0) {
-      for (const file of files) {
-        const uploaded = await uploadToS3(file, "banners")
-        newBanners.push({ banner: uploaded })
-      }
-    }
-
-    if (name) banner.name = name
-    banner.banner = newBanners
-
-    await banner.save()
-
-    return sendSuccessResponse(res, "Banner updated", banner)
-  } catch (error) {
-    console.log("Error while updateBanner", error)
-    return sendErrorResponse(res, 500, "Error while updateBanner", error)
-  }
-}
-
-export const deleteBanner = async (req, res) => {
-  try {
-    const { id } = req.params
-
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return sendBadRequestResponse(res, "id is required or invalid")
-    }
-
-    const banner = await bannerModel.findById(id)
-    if (!banner) return sendBadRequestResponse(res, "Banner not found")
-    if (banner.banner && banner.banner.length > 0) {
       for (const b of banner.banner) {
-        const key = b.banner.split(".amazonaws.com/")[1]
+        const key = b.banner.split(".amazonaws.com/")[1];
+        await deleteFromS3(key);
+      }
 
-        await deleteFromS3(key)
+      banner.banner = [];
+
+      for (const file of files) {
+        const uploaded = await uploadToS3(file, "home-banners");
+        banner.banner.push({ banner: uploaded });
       }
     }
 
-    const deleted = await bannerModel.findByIdAndDelete(id)
+    await banner.save();
 
-    return sendSuccessResponse(res, "Banner deleted successfully", deleted)
+    return sendSuccessResponse(res, "Banner updated", banner);
   } catch (error) {
-    console.log("Error while deleteBanner", error)
-    return sendErrorResponse(res, 500, "Error while deleteBanner", error)
+    return sendErrorResponse(res, 500, "Update failed", error);
   }
-}
+};
+
+export const deleteBannerByName = async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    if (!name)
+      return sendBadRequestResponse(res, "Banner name required");
+
+    const banner = await bannerModel.findOne({ name });
+    if (!banner)
+      return sendBadRequestResponse(res, "Banner not found");
+
+    if (banner.banner?.length > 0) {
+      for (const b of banner.banner) {
+        const key = b.banner.split(".amazonaws.com/")[1];
+        if (key) {
+          await deleteFromS3(key);
+        }
+      }
+    }
+
+    await bannerModel.findOneAndDelete({ name });
+
+    return sendSuccessResponse(
+      res,
+      "Banner deleted successfully",
+      banner
+    );
+  } catch (error) {
+    return sendErrorResponse(res, 500, "Error deleting banner", error);
+  }
+};

@@ -15,8 +15,8 @@ import cartController from '../controllers/cart.controller.js';
 import orderController from '../controllers/order.controller.js';
 import paymentController from '../controllers/payment.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
-import { createHeroBanner, deleteBanner, getAllBanners, updateBanner } from '../controllers/banner.controller.js';
-import { bestSeller, getFiltteredProducts, grabNowDeals, newArrival, trendingDeals } from '../controllers/home.controller.js';
+import { createHomeBanner, deleteBannerByName, getAllBanners, getHomeBanners, updateBannerByName } from '../controllers/banner.controller.js';
+import { bestSeller, getFiltteredProducts, grabNowDeals, newArrival, newProducts, trendingDeals } from '../controllers/home.controller.js';
 import { checkUserReview, createReview, deleteReview, getProductReviews, updateReview } from '../controllers/review.controller.js';
 import { createOfferBanner, deleteOfferBanner, getAllOfferBanners, updateOfferBanner } from '../controllers/offer.controller.js';
 
@@ -178,13 +178,15 @@ indexRoutes.get('/getProductReviews/:productId', getProductReviews);
 indexRoutes.get('/checkUserReview/:productId/:variantId', UserAuth, checkUserReview);
 
 //home page api's
-indexRoutes.post("/heroBanner", adminAuth, upload.array("banners"), createHeroBanner)
+indexRoutes.post("/heroBanner", adminAuth, upload.array("banners"), createHomeBanner)
+indexRoutes.get("/getHomeBanners", getHomeBanners)
 indexRoutes.get("/getAllBanner", getAllBanners)
-indexRoutes.patch("/updateBanner/:id", adminAuth, upload.array("banners"), updateBanner)
-indexRoutes.delete("/deleteBanner/:id", adminAuth, deleteBanner)
+indexRoutes.patch("/updateBannerByName/:name", adminAuth, upload.array("banners"), updateBannerByName);
+indexRoutes.delete("/deleteBannerByName/:name", adminAuth, deleteBannerByName);
 
 indexRoutes.get("/newArrival", newArrival)
 indexRoutes.get("/bestSellers", bestSeller)
+indexRoutes.get("/newProducts", newProducts)
 indexRoutes.get("/trending-deals", trendingDeals)
 indexRoutes.get("/grabNowDeals", grabNowDeals)
 

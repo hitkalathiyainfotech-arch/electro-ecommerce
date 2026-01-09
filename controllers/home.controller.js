@@ -8,8 +8,13 @@ import reviewModel from "../models/review.model.js";
 
 export const newArrival = async (req, res) => {
   try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
     const products = await productModel
-      .find({})
+      .find({
+        createdAt: { $gte: thirtyDaysAgo },
+        isActive: true
+      })
       .sort({ createdAt: -1 })
       .limit(15)
       .populate("brand")
@@ -17,25 +22,24 @@ export const newArrival = async (req, res) => {
       .populate({
         path: "variantId",
         options: { limit: 1 }
-      })
+      });
 
     const formatted = products.map(p => {
       return {
         ...p._doc,
         variantId: p.variantId.length > 0 ? [p.variantId[0]] : []
       }
-    })
+    });
 
-    return sendSuccessResponse(res, "new Arrival featched successfully", {
+    return sendSuccessResponse(res, "New Arrivals fetched successfully", {
       total: formatted.length,
       products: formatted
-    })
+    });
   } catch (error) {
-    console.log("error while get newArrival : " + error)
-    return sendErrorResponse(res, 500, "error while get newArrival", error)
+    console.log("error while get newArrival : " + error);
+    return sendErrorResponse(res, 500, "error while get newArrival", error);
   }
 }
-
 
 export const bestSeller = async (req, res) => {
   try {
@@ -48,6 +52,40 @@ export const bestSeller = async (req, res) => {
   }
 }
 
+export const newProducts = async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    
+    const products = await productModel
+      .find({ 
+        isActive: true,
+        createdAt: { $lt: thirtyDaysAgo }
+      })
+      .sort({ view: -1, sold: -1 })
+      .limit(6)
+      .populate("brand")
+      .populate("categories")
+      .populate({
+        path: "variantId",
+        options: { limit: 1 }
+      });
+
+    const formatted = products.map(p => {
+      return {
+        ...p._doc,
+        variantId: p.variantId.length > 0 ? [p.variantId[0]] : []
+      }
+    });
+
+    return sendSuccessResponse(res, "New Products fetched successfully", {
+      total: formatted.length,
+      products: formatted
+    });
+  } catch (error) {
+    console.log("Error while fetching new products", error);
+    return sendErrorResponse(res, 500, "Error while fetching new products", error);
+  }
+}
 
 export const trendingDeals = async (req, res) => {
   try {
