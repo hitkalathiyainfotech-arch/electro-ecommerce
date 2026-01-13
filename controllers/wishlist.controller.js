@@ -53,13 +53,13 @@ export const getWishlist = async (req, res) => {
         model: "product",
         populate: {
           path: "categories",
-          model:"category"
+          model: "category"
         }
       })
       .lean();
 
     if (!wishlist || !wishlist.items?.length) {
-      return sendSuccessResponse(res, "Your wishlist is empty!", []);
+      return sendSuccessResponse(res, "Your wishlist is empty!", {});
     }
 
     wishlist.items = wishlist.items.filter((item) => item.productId);
