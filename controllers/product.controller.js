@@ -491,15 +491,32 @@ export const searchProducts = async (req, res) => {
     }
 
     const products = await productModel.find(matchQuery)
-      .populate("brand")
-      .populate("categories")
-      .populate("sellerId", "firstName mobileNo email avatar role")
+      .populate({
+        path: "variantId",
+        model: "productVariant",
+        options: { limit: 1 }
+      })
       .sort({ createdAt: -1 })
+      .lean();
 
-    return sendSuccessResponse(res, "Products fetched successfully", {
-      total: products.length,
-      products
+    const formattedProducts = products.map(product => {
+      let variantIdArray = [];
+
+      if (product.variantId) {
+        if (Array.isArray(product.variantId)) {
+          variantIdArray = product.variantId.length > 0 ? [product.variantId[0]] : [];
+        } else if (typeof product.variantId === 'object' && product.variantId._id) {
+          variantIdArray = [product.variantId];
+        }
+      }
+
+      return {
+        ...product,
+        variantId: variantIdArray
+      }
     })
+
+    return sendSuccessResponse(res, "Products fetched successfully", formattedProducts)
 
   } catch (error) {
     console.log("error while searchProducts", error.message)

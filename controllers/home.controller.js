@@ -17,8 +17,6 @@ export const newArrival = async (req, res) => {
       })
       .sort({ createdAt: -1 })
       .limit(15)
-      .populate("brand")
-      .populate("categories")
       .populate({
         path: "variantId",
         options: { limit: 1 }
@@ -31,10 +29,7 @@ export const newArrival = async (req, res) => {
       }
     });
 
-    return sendSuccessResponse(res, "New Arrivals fetched successfully", {
-      total: formatted.length,
-      products: formatted
-    });
+    return sendSuccessResponse(res, "New Arrivals fetched successfully", formatted);
   } catch (error) {
     console.log("error while get newArrival : " + error);
     return sendErrorResponse(res, 500, "error while get newArrival", error);
@@ -43,9 +38,22 @@ export const newArrival = async (req, res) => {
 
 export const bestSeller = async (req, res) => {
   try {
-    const products = await productModel.find({}).sort({ sold: -1 }).limit(15);
+    const products = await productModel
+      .find({})
+      .sort({ sold: -1 })
+      .limit(15)
+      .populate({
+        path: "variantId",
+      });
 
-    return sendSuccessResponse(res, "best selling Products", products);
+    const formatted = products.map(p => {
+      return {
+        ...p._doc,
+        variantId: p.variantId && p.variantId.length > 0 ? p.variantId : []
+      }
+    });
+
+    return sendSuccessResponse(res, "best selling Products", formatted);
   } catch (error) {
     console.log("Error while bestSeller", error)
     return sendErrorResponse(res, 500, "Error while bestSeller", error)
@@ -55,32 +63,26 @@ export const bestSeller = async (req, res) => {
 export const newProducts = async (req, res) => {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
+
     const products = await productModel
-      .find({ 
+      .find({
         isActive: true,
         createdAt: { $lt: thirtyDaysAgo }
       })
       .sort({ view: -1, sold: -1 })
       .limit(6)
-      .populate("brand")
-      .populate("categories")
       .populate({
         path: "variantId",
-        options: { limit: 1 }
       });
 
     const formatted = products.map(p => {
       return {
         ...p._doc,
-        variantId: p.variantId.length > 0 ? [p.variantId[0]] : []
+        variantId: p.variantId && p.variantId.length > 0 ? p.variantId : []
       }
     });
 
-    return sendSuccessResponse(res, "New Products fetched successfully", {
-      total: formatted.length,
-      products: formatted
-    });
+    return sendSuccessResponse(res, "New Products fetched successfully", formatted);
   } catch (error) {
     console.log("Error while fetching new products", error);
     return sendErrorResponse(res, 500, "Error while fetching new products", error);
@@ -100,7 +102,7 @@ export const trendingDeals = async (req, res) => {
             trendingScore: {
               $add: [
                 { $multiply: ["$sold", 2] },
-                { $multiply: ["$views", 1] },
+                { $multiply: ["$view", 1] },
                 {
                   $cond: [
                     { $gte: ["$createdAt", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)] },
@@ -121,15 +123,18 @@ export const trendingDeals = async (req, res) => {
 
     const finalProducts = await productModel
       .find({ _id: { $in: ids } })
-      .populate("sellerId", "firstName email mobileNo avatar")
-      .populate("brand", "brandName brandImage")
-      .populate("categories", "name image")
-      .populate("variantId", "-overview -key_features -specification")
+      .populate({
+        path: "variantId",
+      });
 
-    return sendSuccessResponse(res, "Trending Deals Products", {
-      total: finalProducts.length,
-      products: finalProducts
+    const formatted = finalProducts.map(p => {
+      return {
+        ...p._doc,
+        variantId: p.variantId && p.variantId.length > 0 ? p.variantId : []
+      }
     });
+
+    return sendSuccessResponse(res, "Trending Deals Products", formatted);
   } catch (error) {
     return sendErrorResponse(res, 500, "Error while fetching trending deals", error);
   }
@@ -138,13 +143,7 @@ export const trendingDeals = async (req, res) => {
 export const grabNowDeals = async (req, res) => {
   try {
     const variants = await productVarientModel.find({})
-      .populate({
-        path: "productId",
-        populate: [
-          { path: "brand" },
-          { path: "categories" },
-        ]
-      })
+      .populate("productId")
       .populate("sellerId");
 
     const deals = [];
@@ -179,30 +178,46 @@ export const grabNowDeals = async (req, res) => {
           ? Math.round(((originalPrice - effectivePrice) / originalPrice) * 100)
           : 0;
 
+      const product = v.productId;
+      if (!product) continue;
+
+      const allVariants = await productVarientModel.find({
+        productId: product._id
+      });
+
       deals.push({
-        variantId: v._id,
-        productId: v.productId,
-        sellerId: v.sellerId,
-        variantTitle: v.variantTitle,
-        images: color.images || [],
-        originalPrice,
-        discountedPrice: effectivePrice,
-        discountPercent,
-        stock
+        ...product._doc,
+        variantId: allVariants,
+        dealDetails: {
+          selectedVariantId: v._id,
+          variantTitle: v.variantTitle,
+          images: color.images || [],
+          originalPrice,
+          discountedPrice: effectivePrice,
+          discountPercent,
+          stock
+        }
       });
     }
 
     deals.sort((a, b) => {
-      if (b.discountPercent !== a.discountPercent) {
-        return b.discountPercent - a.discountPercent;
+      if (b.dealDetails.discountPercent !== a.dealDetails.discountPercent) {
+        return b.dealDetails.discountPercent - a.dealDetails.discountPercent;
       }
-      return a.discountedPrice - b.discountedPrice;
+      return a.dealDetails.discountedPrice - b.dealDetails.discountedPrice;
     });
 
-    return sendSuccessResponse(res, "Grab Now Deals Fetched", {
-      total: deals.length,
-      products: deals.slice(0, 10)
-    });
+    const uniqueDeals = [];
+    const seenProductIds = new Set();
+
+    for (const deal of deals) {
+      if (!seenProductIds.has(deal._id.toString())) {
+        seenProductIds.add(deal._id.toString());
+        uniqueDeals.push(deal);
+      }
+    }
+
+    return sendSuccessResponse(res, "Grab Now Deals Fetched", uniqueDeals.slice(0, 10));
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -254,14 +269,22 @@ export const getFiltteredProducts = async (req, res) => {
     }
 
     let products = await productModel.find(matchQuery)
-      .populate("brand")
-      .populate("categories")
-      .populate("sellerId", "firstName mobileNo email avatar role")
       .populate("variantId")
       .sort({ createdAt: -1 });
 
+    const formattedProducts = products.map(product => {
+      return {
+        ...product._doc,
+        brand: product.brand,
+        categories: product.categories,
+        variantId: product.variantId || []
+      };
+    });
+
+    let filteredProducts = formattedProducts;
+
     if (min !== null || max !== null || color || size) {
-      products = products
+      filteredProducts = filteredProducts
         .map(product => {
           const variants = product.variantId.filter(variant => {
             let ok = true;
@@ -298,8 +321,10 @@ export const getFiltteredProducts = async (req, res) => {
           });
 
           if (variants.length > 0) {
-            product.variantId = variants;
-            return product;
+            return {
+              ...product,
+              variantId: variants
+            };
           }
           return null;
         })
@@ -307,7 +332,7 @@ export const getFiltteredProducts = async (req, res) => {
     }
 
     if (minRating !== null) {
-      const productIds = products.map(p => p._id);
+      const productIds = filteredProducts.map(p => p._id);
 
       const ratingAgg = await reviewModel.aggregate([
         { $match: { productId: { $in: productIds } } },
@@ -328,27 +353,28 @@ export const getFiltteredProducts = async (req, res) => {
       const ratingMap = {};
       ratingAgg.forEach(r => {
         ratingMap[r._id.toString()] = {
-          avgRating: Number(r.avgRating.toFixed(1)),
+          average: Number(r.avgRating.toFixed(1)),
           totalReviews: r.totalReviews
         };
       });
 
-      products = products
-        .filter(p => ratingMap[p._id.toString()])  // <- only products with reviews >= minRating
+      filteredProducts = filteredProducts
+        .filter(p => ratingMap[p._id.toString()])
         .map(p => {
-          p._doc.rating = ratingMap[p._id.toString()];
-          return p;
+          return {
+            ...p,
+            rating: ratingMap[p._id.toString()]
+          };
         });
     }
 
-
     if (sort) {
       if (sort === "latest") {
-        products.sort((a, b) => b.createdAt - a.createdAt);
+        filteredProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       }
 
       if (sort === "popular") {
-        products.sort(
+        filteredProducts.sort(
           (a, b) =>
             (b.rating?.totalReviews || 0) -
             (a.rating?.totalReviews || 0)
@@ -356,34 +382,31 @@ export const getFiltteredProducts = async (req, res) => {
       }
 
       if (sort === "rating") {
-        products.sort(
+        filteredProducts.sort(
           (a, b) =>
-            (b.rating?.avgRating || 0) -
-            (a.rating?.avgRating || 0)
+            (b.rating?.average || 0) -
+            (a.rating?.average || 0)
         );
       }
 
       if (sort === "priceLow") {
-        products.sort(
-          (a, b) =>
-            a.variantId[0]?.color?.discountedPrice -
-            b.variantId[0]?.color?.discountedPrice
-        );
+        filteredProducts.sort((a, b) => {
+          const priceA = getMinPriceFromVariants(a.variantId);
+          const priceB = getMinPriceFromVariants(b.variantId);
+          return priceA - priceB;
+        });
       }
 
       if (sort === "priceHigh") {
-        products.sort(
-          (a, b) =>
-            b.variantId[0]?.color?.discountedPrice -
-            a.variantId[0]?.color?.discountedPrice
-        );
+        filteredProducts.sort((a, b) => {
+          const priceA = getMinPriceFromVariants(a.variantId);
+          const priceB = getMinPriceFromVariants(b.variantId);
+          return priceB - priceA;
+        });
       }
     }
 
-    return sendSuccessResponse(res, "Products fetched successfully", {
-      total: products.length,
-      products
-    });
+    return sendSuccessResponse(res, "Products fetched successfully", filteredProducts);
 
   } catch (error) {
     console.log("error while filtering products", error);
@@ -391,5 +414,24 @@ export const getFiltteredProducts = async (req, res) => {
   }
 };
 
+function getMinPriceFromVariants(variants) {
+  if (!variants || variants.length === 0) return Infinity;
 
+  let minPrice = Infinity;
+  variants.forEach(variant => {
+    const color = variant.color;
+    if (!color) return;
 
+    if (color.sizes && color.sizes.length > 0) {
+      color.sizes.forEach(size => {
+        const price = size.discountedPrice || size.price;
+        if (price < minPrice) minPrice = price;
+      });
+    } else {
+      const price = color.discountedPrice || color.price;
+      if (price < minPrice) minPrice = price;
+    }
+  });
+
+  return minPrice === Infinity ? 0 : minPrice;
+}
