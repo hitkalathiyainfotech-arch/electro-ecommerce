@@ -8,13 +8,8 @@ import reviewModel from "../models/review.model.js";
 
 export const newArrival = async (req, res) => {
   try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
     const products = await productModel
-      .find({
-        createdAt: { $gte: thirtyDaysAgo },
-        isActive: true
-      })
+      .find({ isActive: true })
       .sort({ createdAt: -1 })
       .limit(15)
       .populate({
@@ -22,19 +17,20 @@ export const newArrival = async (req, res) => {
         options: { limit: 1 }
       });
 
-    const formatted = products.map(p => {
-      return {
-        ...p._doc,
-        variantId: p.variantId.length > 0 ? [p.variantId[0]] : []
-      }
-    });
+    const formatted = products.map(p => ({
+      ...p._doc,
+      variantId: p.variantId?.length ? [p.variantId[0]] : []
+    }));
 
-    return sendSuccessResponse(res, "New Arrivals fetched successfully", formatted);
+    return sendSuccessResponse(
+      res,
+      "New Arrivals fetched successfully",
+      formatted
+    );
   } catch (error) {
-    console.log("error while get newArrival : " + error);
     return sendErrorResponse(res, 500, "error while get newArrival", error);
   }
-}
+};
 
 export const bestSeller = async (req, res) => {
   try {
