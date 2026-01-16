@@ -51,10 +51,16 @@ export const getWishlist = async (req, res) => {
       .populate({
         path: "items.productId",
         model: "product",
-        populate: {
-          path: "categories",
-          model: "category"
-        }
+        populate: [
+          {
+            path: "categories",
+            model: "category"
+          },
+          {
+            path: "variantId",
+            model: "productVariant"
+          }
+        ]
       })
       .lean();
 
