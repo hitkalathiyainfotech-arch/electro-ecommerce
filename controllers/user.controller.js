@@ -333,6 +333,54 @@ export const getUser = async (req, res) => {
   }
 }
 
+export const deleteUser = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return sendBadRequestResponse(res, "Invalid user ID");
+    }
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return sendNotFoundResponse(res, "User not found");
+    }
+
+    if (user.avatar && !user.avatar.includes('ui-avatars.com')) {
+      try {
+        const avatarUrl = user.avatar;
+        const bucketName = process.env.AWS_BUCKET_NAME;
+
+        let avatarKey;
+        if (avatarUrl.includes(`.s3.`)) {
+          avatarKey = avatarUrl.split(`.s3.`)[1];
+          avatarKey = avatarKey.substring(avatarKey.indexOf('/') + 1);
+        } else if (avatarUrl.includes(bucketName)) {
+          avatarKey = avatarUrl.split(`${bucketName}/`)[1];
+        }
+
+        if (avatarKey) {
+          avatarKey = avatarKey.split('?')[0];
+          await deleteFromS3(avatarKey);
+        }
+      } catch (s3Error) {
+        console.error('Error deleting avatar from S3:', s3Error.message);
+      }
+    }
+
+    await userModel.findByIdAndDelete(userId);
+
+    return sendSuccessResponse(res, "Your account has been deleted successfully", {
+      userId: user._id,
+      email: user.email,
+      fullName: user.fullName,
+      deletedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    return sendErrorResponse(res, 500, "Error while deleting user account", error);
+  }
+};
+
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
