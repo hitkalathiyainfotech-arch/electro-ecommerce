@@ -32,8 +32,8 @@ export const initiatePayment = async (req, res) => {
       return sendBadRequestResponse(res, "Payment already completed for this order");
     }
 
-    if (order.paymentInfo.method !== "razorpay") {
-      return sendBadRequestResponse(res, "This order is not for Razorpay payment");
+    if (order.paymentInfo.method !== "card") {
+      return sendBadRequestResponse(res, "This order is not for Card payment");
     }
 
     const razorpayOrder = await createRazorpayOrder(
@@ -81,8 +81,8 @@ export const initiateEMIPayment = async (req, res) => {
       return sendBadRequestResponse(res, "Payment already completed for this order");
     }
 
-    if (order.paymentInfo.method !== "razorpay") {
-      return sendBadRequestResponse(res, "This order is not for Razorpay payment");
+    if (order.paymentInfo.method !== "emi") {
+      return sendBadRequestResponse(res, "This order is not for EMI payment");
     }
 
     const { order: razorpayOrder, emiDetails } = await createRazorpayEMIOrder(
@@ -97,20 +97,9 @@ export const initiateEMIPayment = async (req, res) => {
     order.emiInfo.monthlyAmount = emiDetails.monthlyAmount;
     order.emiInfo.totalEMIAmount = emiDetails.totalAmount;
     order.emiInfo.interestRate = emiDetails.interestRate;
-
-    const nextPaymentDate = new Date();
-    order.emiInfo.installments = Array.from({ length: tenure }, (_, i) => {
-      const dueDate = new Date();
-      dueDate.setMonth(dueDate.getMonth() + (i + 1));
-      return {
-        installmentNo: i + 1,
-        amount: emiDetails.monthlyAmount,
-        dueDate,
-        status: i === 0 ? "pending" : "pending"
-      };
-    });
-
-    order.emiInfo.nextPaymentDate = order.emiInfo.installments[0].dueDate;
+    order.emiInfo.emiStatus = "pending";
+    // For standard EMI, we don't need to generate manual future installments.
+    // The bank handles the schedule. We just record what was chosen.
 
     await order.save();
 
@@ -179,12 +168,9 @@ export const verifyPayment = async (req, res) => {
       order.timeline.orderConfirmed = new Date();
     }
 
-    if (order.emiInfo.enabled && order.emiInfo.installments.length > 0) {
-      order.emiInfo.installments[0].paidDate = new Date();
-      order.emiInfo.installments[0].status = "paid";
-      order.emiInfo.installments[0].razorpayPaymentId = razorpay_payment_id;
-      order.emiInfo.paidInstallments = 1;
+    if (order.emiInfo.enabled) {
       order.emiInfo.emiStatus = "active";
+      // Removed manual installment tracking
     }
 
     order.lastUpdated = new Date();
@@ -281,7 +267,7 @@ export const processRefund = async (req, res) => {
     const order = await Order.findOne({ orderId, userId });
     if (!order) return sendNotFoundResponse(res, "Order not found");
 
-    if (order.paymentInfo.method !== "razorpay" || !order.paymentInfo.razorpayPaymentId) {
+    if (order.paymentInfo.method !== "card" && order.paymentInfo.method !== "emi") {
       return sendBadRequestResponse(res, "No Razorpay payment to refund");
     }
 

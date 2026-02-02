@@ -18,6 +18,7 @@ const productSchema = new mongoose.Schema({
     ],
     view: { type: Number, default: 0 },
     sold: { type: Number, default: 0 },
+    emi: { type: Boolean },
     isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

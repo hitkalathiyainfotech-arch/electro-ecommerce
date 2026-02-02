@@ -26,8 +26,8 @@ export const createOrder = async (req, res) => {
     if (!userId) return sendBadRequestResponse(res, "User ID required");
 
     const cart = await Cart.findOne({ userId })
-      .populate("items.product", "title productBanner price")
-      .populate("items.variant")
+      .populate("items.product", "title productBanner price emi")
+      .populate("items.variant", "emi")
       .populate("appliedCombos.comboId", "title discountPercentage")
       .populate("appliedCoupon.couponId", "code");
 
@@ -40,6 +40,45 @@ export const createOrder = async (req, res) => {
 
     if (!user.selectedAddress) {
       return sendBadRequestResponse(res, "Please select a shipping address");
+    }
+
+    // Validate Payment Method
+    const validMethods = ["cod", "card", "emi"];
+    if (!validMethods.includes(paymentMethod)) {
+      return sendBadRequestResponse(res, "Invalid payment method. Allowed: COD, CARD, EMI");
+    }
+
+    // EMI Eligibility Check
+    if (paymentMethod === "emi") {
+      // Check if ANY item in the cart does NOT support EMI
+      const nonEmiItem = cart.items.find(item => {
+        // If variant exists, check variant.emi, otherwise check product.emi
+        // We assume default true if undefined, unless explicitly false. 
+        // But since the user defined the schema field, we should respect the value.
+        // Let's assume strict check: must be explicitly true? Or just not false? 
+        // Given my previous default was true, I'll treat 'undefined' as true for backward comp roughly, 
+        // but 'false' handles the restriction.
+
+        let isEmiAllowed = true;
+
+        if (item.variant && item.variant.emi !== undefined) {
+          isEmiAllowed = item.variant.emi;
+        } else if (item.product && item.product.emi !== undefined) {
+          isEmiAllowed = item.product.emi;
+        }
+
+        // If it's explicitly false, then this item is the "nonEmiItem"
+        return isEmiAllowed === false;
+      });
+
+      if (nonEmiItem) {
+        const itemName = nonEmiItem.product?.title || "An item";
+        return sendBadRequestResponse(res, `EMI is not available for ${itemName}`);
+      }
+
+      if (cart.finalTotal < 3000) { // Standard min amount for EMI
+        return sendBadRequestResponse(res, "Order total must be at least ₹3000 for EMI.");
+      }
     }
 
     const selectedAddress = user.address?.find(
@@ -118,7 +157,7 @@ export const createOrder = async (req, res) => {
           : null
       },
       paymentInfo: {
-        method: paymentMethod || "cod",
+        method: paymentMethod, // Already validated
         status: "pending"
       },
       orderStatus: {

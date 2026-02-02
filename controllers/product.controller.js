@@ -114,7 +114,8 @@ export const createProduct = async (req, res) => {
 
     const populatedProduct = await Product.findById(newProduct._id)
       .populate("brand", "brandName brandImage")
-      .populate("categories", "name image");
+      .populate("categories", "name image")
+      .populate("variantId");
 
     return sendSuccessResponse(res, "Product created successfully", populatedProduct);
   } catch (error) {
@@ -155,7 +156,8 @@ export const getProductById = async (req, res) => {
     let product = await Product.findById(id)
       .populate("brand", "brandName brandImage")
       .populate("sellerId", "firstName lastName email mobileNo shopName pickUpAddr")
-      .populate("categories", "name image");
+      .populate("categories", "name image")
+      .populate("variantId");
 
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
@@ -175,6 +177,7 @@ export const getProductById = async (req, res) => {
       rating: product.rating,
       brand: product.brand,
       categories: product.categories,
+      variantId: product.variantId,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt
     };
@@ -192,6 +195,7 @@ export const getSellerProducts = async (req, res) => {
       .populate("brand", "brandName logo description")
       .populate("sellerId", "firstName lastName email shopName")
       .populate("categories", "name image")
+      .populate("variantId")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -299,7 +303,8 @@ export const updateProduct = async (req, res) => {
       { new: true, runValidators: true }
     )
       .populate('brand', 'brandName')
-      .populate('categories', 'name');
+      .populate('categories', 'name')
+      .populate('variantId');
 
     return sendSuccessResponse(res, "Product updated successfully", updatedProduct);
   } catch (error) {
@@ -380,7 +385,8 @@ export const getProductByCategory = async (req, res) => {
     const products = await Product.find({ categories: { $in: categoryIds } })
       .populate("sellerId")
       .populate("brand")
-      .populate("categories");
+      .populate("categories")
+      .populate("variantId");
 
     if (products.length === 0) {
       return sendNotFoundResponse(res, "No products found for this category");
@@ -498,6 +504,7 @@ export const getProductsByBrand = async (req, res) => {
       .populate("sellerId", "firstName lastName email shopName")
       .populate("brand", "brandName brandImage")
       .populate("categories", "name image")
+      .populate("variantId")
       .lean();
 
     return sendSuccessResponse(res, `Products for brand ${brand.brandName} fetched successfully`, {
@@ -546,32 +553,11 @@ export const searchProducts = async (req, res) => {
     }
 
     const products = await productModel.find(matchQuery)
-      .populate({
-        path: "variantId",
-        model: "productVariant",
-        options: { limit: 1 }
-      })
+      .populate("variantId")
       .sort({ createdAt: -1 })
       .lean();
 
-    const formattedProducts = products.map(product => {
-      let variantIdArray = [];
-
-      if (product.variantId) {
-        if (Array.isArray(product.variantId)) {
-          variantIdArray = product.variantId.length > 0 ? [product.variantId[0]] : [];
-        } else if (typeof product.variantId === 'object' && product.variantId._id) {
-          variantIdArray = [product.variantId];
-        }
-      }
-
-      return {
-        ...product,
-        variantId: variantIdArray
-      }
-    })
-
-    return sendSuccessResponse(res, "Products fetched successfully", formattedProducts)
+    return sendSuccessResponse(res, "Products fetched successfully", products)
 
   } catch (error) {
 
