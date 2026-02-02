@@ -32,8 +32,9 @@ export const initiatePayment = async (req, res) => {
       return sendBadRequestResponse(res, "Payment already completed for this order");
     }
 
-    if (order.paymentInfo.method !== "card") {
-      return sendBadRequestResponse(res, "This order is not for Card payment");
+    const onlineMethods = ["card", "upi", "netbanking", "wallet"];
+    if (!onlineMethods.includes(order.paymentInfo.method)) {
+      return sendBadRequestResponse(res, "This order is not for Online payment (Card/UPI/Netbanking/Wallet)");
     }
 
     const razorpayOrder = await createRazorpayOrder(
@@ -152,6 +153,10 @@ export const verifyPayment = async (req, res) => {
 
     const paymentInfo = await getRazorpayPaymentDetails(razorpay_payment_id);
 
+    if (paymentInfo.method && ["card", "emi", "upi", "netbanking", "wallet"].includes(paymentInfo.method)) {
+      order.paymentInfo.method = paymentInfo.method;
+    }
+
     order.paymentInfo.status = "completed";
     order.paymentInfo.razorpayPaymentId = razorpay_payment_id;
     order.paymentInfo.razorpaySignature = razorpay_signature;
@@ -267,7 +272,8 @@ export const processRefund = async (req, res) => {
     const order = await Order.findOne({ orderId, userId });
     if (!order) return sendNotFoundResponse(res, "Order not found");
 
-    if (order.paymentInfo.method !== "card" && order.paymentInfo.method !== "emi") {
+    const onlineMethods = ["card", "emi", "upi", "netbanking", "wallet"];
+    if (!onlineMethods.includes(order.paymentInfo.method)) {
       return sendBadRequestResponse(res, "No Razorpay payment to refund");
     }
 

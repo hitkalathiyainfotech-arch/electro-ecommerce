@@ -13,12 +13,14 @@ export const addToCart = async (req, res) => {
     const { productId, variantId, comboId, quantity, selectedSize, courierService } = req.body;
 
     if (!userId) return sendBadRequestResponse(res, "User ID required");
-    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) return sendBadRequestResponse(res, "Valid productId required");
     if (quantity === undefined || quantity === null) return sendBadRequestResponse(res, "Quantity required");
     if (typeof quantity !== "number") return sendBadRequestResponse(res, "quantity Type must be a Number");
 
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = await Cart.create({ userId, items: [] });
+
+    // Standard Single Item Logic
+    if (!productId || !mongoose.Types.ObjectId.isValid(productId)) return sendBadRequestResponse(res, "Valid productId required");
 
     const product = await Product.findById(productId).lean();
     if (!product) return sendNotFoundResponse(res, "Product not found");
@@ -27,7 +29,6 @@ export const addToCart = async (req, res) => {
     let price = 0;
     let discountedPrice = null;
     let variant = null;
-    let combo = null;
     let finalColor = null;
     let finalSize = null;
 
@@ -62,19 +63,14 @@ export const addToCart = async (req, res) => {
       stock = product.stock ?? 0;
     }
 
-    let isComboItem = false;
-    if (comboId && mongoose.Types.ObjectId.isValid(comboId)) {
-      combo = await ComboOffer.findById(comboId).lean();
-      if (combo?.isActive) isComboItem = true;
-    }
-
     const finalUnitPrice = discountedPrice || price || 0;
 
     const existingIndex = cart.items.findIndex(item =>
       item.product.toString() === productId &&
       String(item.variant) === String(variantId || null) &&
       String(item.selectedColor || "") === String(finalColor || "") &&
-      String(item.selectedSize || "") === String(finalSize || "")
+      String(item.selectedSize || "") === String(finalSize || "") &&
+      !item.comboOffer
     );
 
     if (existingIndex >= 0) {
@@ -92,7 +88,7 @@ export const addToCart = async (req, res) => {
       cart.items.push({
         product: productId,
         variant: variantId || null,
-        comboOffer: comboId || null,
+        comboOffer: null,
         selectedColor: finalColor || null,
         selectedSize: finalSize || null,
         price: price || 0,
@@ -102,7 +98,7 @@ export const addToCart = async (req, res) => {
         totalDiscountedPrice: finalUnitPrice * quantity,
         stock,
         sellerId: product.sellerId,
-        isComboItem
+        isComboItem: false
       });
     }
 
@@ -112,17 +108,27 @@ export const addToCart = async (req, res) => {
       return sendBadRequestResponse(res, 'Courier service must be "regular" or "standard"');
     }
 
+
     const deliveryInfo = getDeliveryInfo(selectedService);
 
     cart.courierService = selectedService;
     cart.estimatedDeliveryDate = deliveryInfo.estimatedDeliveryDate;
-    cart.deliveryCharge = selectedService === "regular" ? 10 : 12; recalculateCart(cart);
+    cart.deliveryCharge = selectedService === "regular" ? 10 : 12;
+
+    // Save first to ensure population checks DB or correctly handles the new ID
+    await cart.save();
+
+    if (cart.appliedCombos.length > 0) {
+      await cart.populate("appliedCombos.comboId");
+    }
+
+    recalculateCart(cart);
     await cart.save();
 
     const populatedCart = await Cart.findById(cart._id)
       .populate("items.product", "title productBanner")
-      .populate("items.variant", "variantTitle sku")
-      .populate("appliedCombos.comboId", "title discountPrice");
+      .populate("items.variant", "-overview -key_features -specification")
+      .populate("appliedCombos.comboId", "title discountPercentage");
 
     return sendSuccessResponse(res, "Cart updated", populatedCart);
   } catch (error) {
@@ -182,7 +188,7 @@ export const updateCartItem = async (req, res) => {
     }
     if (!quantity || quantity < 1) return sendBadRequestResponse(res, "Quantity must be at least 1");
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ userId }).populate("appliedCombos.comboId");
     if (!cart) return sendNotFoundResponse(res, "Cart not found");
 
     const itemIndex = cart.items.findIndex(item => item._id.toString() === cartItemId);
@@ -201,7 +207,12 @@ export const updateCartItem = async (req, res) => {
     recalculateCart(cart);
     await cart.save();
 
-    return sendSuccessResponse(res, "Cart item updated", cart);
+    const populatedCart = await Cart.findById(cart._id)
+      .populate("items.product", "title productBanner")
+      .populate("items.variant", "-overview -key_features -specification")
+      .populate("appliedCombos.comboId", "title discountPercentage");
+
+    return sendSuccessResponse(res, "Cart item updated", populatedCart);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -217,7 +228,7 @@ export const removeFromCart = async (req, res) => {
       return sendBadRequestResponse(res, "Valid cartItemId required");
     }
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ userId }).populate("appliedCombos.comboId");
     if (!cart) return sendNotFoundResponse(res, "Cart not found");
 
     cart.items = cart.items.filter(item => item._id.toString() !== cartItemId);
@@ -225,7 +236,12 @@ export const removeFromCart = async (req, res) => {
     recalculateCart(cart);
     await cart.save();
 
-    return sendSuccessResponse(res, "Item removed from cart", cart);
+    const populatedCart = await Cart.findById(cart._id)
+      .populate("items.product", "title productBanner")
+      .populate("items.variant", "-overview -key_features -specification")
+      .populate("appliedCombos.comboId", "title discountPercentage");
+
+    return sendSuccessResponse(res, "Item removed from cart", populatedCart);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -239,16 +255,9 @@ export const clearCart = async (req, res) => {
     const cart = await Cart.findOne({ userId });
     if (!cart) return sendNotFoundResponse(res, "Cart not found");
 
-    cart.items = [];
-    cart.totalItems = 0;
-    cart.totalPrice = 0;
-    cart.totalDiscountedPrice = 0;
-    cart.totalSavings = 0;
-    cart.appliedCombos = [];
+    await Cart.findOneAndDelete({ userId });
 
-    await cart.save();
-
-    return sendSuccessResponse(res, "Cart cleared", cart);
+    return sendSuccessResponse(res, "Cart cleared successfully", null);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -341,7 +350,8 @@ export const applyComboToCart = async (req, res) => {
         i.product.toString() === prod._id.toString() &&
         (variant ? String(i.variant) === String(variant._id) : !i.variant) &&
         String(i.selectedColor || "") === String(selectedColor || "") &&
-        String(i.selectedSize || "") === String(selectedSize || "")
+        String(i.selectedSize || "") === String(selectedSize || "") &&
+        String(i.comboOffer || null) === String(comboId || null)
       );
 
       if (existing) {
@@ -374,6 +384,10 @@ export const applyComboToCart = async (req, res) => {
       discountApplied
     });
 
+    if (cart.appliedCombos.length > 0) {
+      await cart.populate("appliedCombos.comboId");
+    }
+
     recalculateCart(cart);
     await cart.save();
 
@@ -398,12 +412,18 @@ export const removeComboFromCart = async (req, res) => {
       return sendBadRequestResponse(res, "Valid comboId required");
     }
 
-    const cart = await Cart.findOne({ userId });
+    const cart = await Cart.findOne({ userId }).populate("appliedCombos.comboId");
     if (!cart) return sendNotFoundResponse(res, "Cart not found");
 
-    cart.appliedCombos = cart.appliedCombos.filter(
-      c => c.comboId.toString() !== comboId
+    const comboIndex = cart.appliedCombos.findIndex(
+      c => (c.comboId._id ? c.comboId._id.toString() : c.comboId.toString()) === comboId
     );
+
+    if (comboIndex === -1) {
+      return sendNotFoundResponse(res, "Combo not found in cart");
+    }
+
+    cart.appliedCombos.splice(comboIndex, 1);
 
     cart.items = cart.items.filter(
       item => !(item.comboOffer && item.comboOffer.toString() === comboId)
@@ -412,13 +432,32 @@ export const removeComboFromCart = async (req, res) => {
     recalculateCart(cart);
     await cart.save();
 
-    return sendSuccessResponse(res, "Combo removed from cart", cart);
+    const populatedCart = await Cart.findById(cart._id)
+      .populate("items.product", "title productBanner")
+      .populate("items.variant", "-overview -key_features -specification")
+      .populate("appliedCombos.comboId", "title discountPercentage");
+
+    return sendSuccessResponse(res, "Combo removed from cart", populatedCart);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
 };
 
 const recalculateCart = (cart) => {
+  if (!cart.items || cart.items.length === 0) {
+    cart.totalItems = 0;
+    cart.totalPrice = 0;
+    cart.totalDiscountedPrice = 0;
+    cart.totalSavings = 0;
+    cart.comboDiscount = 0;
+    cart.couponDiscount = 0;
+    cart.deliveryCharge = 0;
+    cart.gst = 0;
+    cart.subtotal = 0;
+    cart.finalTotal = 0;
+    return;
+  }
+
   let totalItems = 0;
   let totalOriginal = 0;
   let totalDiscounted = 0;
@@ -435,10 +474,31 @@ const recalculateCart = (cart) => {
   cart.totalSavings = totalOriginal - totalDiscounted;
 
   let comboDiscount = 0;
+
+  // Create a map of total value per comboId calculated from the items actually in the cart
+  const comboItemTotals = {};
+  cart.items.forEach(i => {
+    if (i.comboOffer) {
+      const cId = i.comboOffer._id ? i.comboOffer._id.toString() : i.comboOffer.toString();
+      if (!comboItemTotals[cId]) comboItemTotals[cId] = 0;
+      // Use discountedPrice if available, as that's the base for further discounts usually, or price
+      comboItemTotals[cId] += (i.discountedPrice || i.price) * i.quantity;
+    }
+  });
+
   if (Array.isArray(cart.appliedCombos)) {
     cart.appliedCombos.forEach(c => {
-      if (c.comboId && c.comboId.discountPercentage) {
-        comboDiscount += Math.round((totalDiscounted * c.comboId.discountPercentage) / 100);
+      if (!c.comboId) return;
+      const cId = c.comboId._id ? c.comboId._id.toString() : c.comboId.toString();
+
+      if (c.comboId.discountPercentage) {
+        // Calculate discount ONLY on the total of items associated with this combo
+        const applicableTotal = comboItemTotals[cId] || 0;
+        const da = Math.round((applicableTotal * c.comboId.discountPercentage) / 100);
+        c.discountApplied = da;
+        comboDiscount += da;
+      } else if (c.discountApplied) {
+        comboDiscount += c.discountApplied;
       }
     });
   }
@@ -672,6 +732,8 @@ export const applyCouponToCart = async (req, res) => {
 
     const populatedCart = await Cart.findById(cart._id)
       .populate("items.product", "title productBanner")
+      .populate("items.variant", "-overview -key_features -specification")
+      .populate("appliedCombos.comboId", "title discountPercentage")
       .populate("appliedCoupon.couponId", "code");
 
     return sendSuccessResponse(res, "Coupon applied successfully", {
@@ -700,7 +762,12 @@ export const removeCouponFromCart = async (req, res) => {
     cart.appliedCoupon = {};
     await cart.save();
 
-    return sendSuccessResponse(res, "Coupon removed from cart", cart);
+    const populatedCart = await Cart.findById(cart._id)
+      .populate("items.product", "title productBanner")
+      .populate("items.variant", "-overview -key_features -specification")
+      .populate("appliedCombos.comboId", "title discountPercentage");
+
+    return sendSuccessResponse(res, "Coupon removed from cart", populatedCart);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }

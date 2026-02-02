@@ -43,9 +43,9 @@ export const createOrder = async (req, res) => {
     }
 
     // Validate Payment Method
-    const validMethods = ["cod", "card", "emi"];
+    const validMethods = ["cod", "card", "emi", "upi", "netbanking", "wallet"];
     if (!validMethods.includes(paymentMethod)) {
-      return sendBadRequestResponse(res, "Invalid payment method. Allowed: COD, CARD, EMI");
+      return sendBadRequestResponse(res, "Invalid payment method. Allowed: COD, CARD, EMI, UPI, NETBANKING, WALLET");
     }
 
     // EMI Eligibility Check
