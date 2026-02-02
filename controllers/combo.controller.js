@@ -34,8 +34,12 @@ export const createCombo = async (req, res) => {
       return sendBadRequestResponse(res, "One or more product IDs are invalid");
     }
 
-    const foundProducts = await Product.find({ _id: { $in: productIds } }).lean();
-    if (foundProducts.length !== productIds.length) {
+    // Deduplicate for checking existence (since multiple variants might belong to one product)
+    const uniqueProductIds = [...new Set(productIds)];
+
+    const foundProducts = await Product.find({ _id: { $in: uniqueProductIds } }).lean();
+
+    if (foundProducts.length !== uniqueProductIds.length) {
       return sendNotFoundResponse(res, "Some products not found");
     }
 
@@ -59,17 +63,41 @@ export const createCombo = async (req, res) => {
           const variant = await ProductVariant.findById(comboProduct.variant).lean();
           if (variant && variant.color) {
             if (Array.isArray(variant.color.sizes) && variant.color.sizes.length > 0) {
+              // Priority 1: Check if any size has stock
               const availableSize = variant.color.sizes.find(s => s.stock > 0);
-              productPrice = availableSize?.price || variant.color.sizes[0].price || 0;
+              // Priority 2: Use the first size if none have stock (fallback)
+              const selectedSize = availableSize || variant.color.sizes[0];
+
+              // Use discountedPrice if available and non-zero, otherwise normal price
+              productPrice = (selectedSize.discountedPrice && selectedSize.discountedPrice > 0)
+                ? selectedSize.discountedPrice
+                : (selectedSize.price || 0);
             } else {
-              productPrice = variant.color.price || 0;
+              // No sizes, use main color price
+              productPrice = (variant.color.discountedPrice && variant.color.discountedPrice > 0)
+                ? variant.color.discountedPrice
+                : (variant.color.price || 0);
             }
           }
         } catch (e) {
-          productPrice = product.price || product.sellingPrice || 0;
+          productPrice = 0;
         }
       } else {
-        productPrice = product.price || product.sellingPrice || 0;
+        // If no variant is provided, we try to find the "default" variant for this product
+        // Since Product model has no price, we must look up a variant
+        const defaultVariant = await ProductVariant.findOne({ productId: product._id }).lean();
+        if (defaultVariant && defaultVariant.color) {
+          if (Array.isArray(defaultVariant.color.sizes) && defaultVariant.color.sizes.length > 0) {
+            const s = defaultVariant.color.sizes[0];
+            productPrice = (s.discountedPrice && s.discountedPrice > 0) ? s.discountedPrice : (s.price || 0);
+          } else {
+            productPrice = (defaultVariant.color.discountedPrice && defaultVariant.color.discountedPrice > 0)
+              ? defaultVariant.color.discountedPrice
+              : (defaultVariant.color.price || 0);
+          }
+        } else {
+          productPrice = 0; // No price found
+        }
       }
 
       totalOriginalPrice += productPrice * qty;
@@ -149,7 +177,7 @@ export const getComboById = async (req, res) => {
     if (!combo) return sendNotFoundResponse(res, "Combo not found");
 
     return sendSuccessResponse(res, "Combo fetched successfully", {
-      total: combos.length,
+      total: combo.length,
       combo
     });
   } catch (error) {

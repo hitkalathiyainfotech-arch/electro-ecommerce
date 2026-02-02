@@ -11,11 +11,28 @@ import categoryModel from "../models/category.model.js";
 import productModel from "../models/product.model.js";
 import reviewModel from "../models/review.model.js";
 
+// Helper to recursively get all child category IDs
+const getAllChildCategoryIds = async (categoryId) => {
+  const children = await categoryModel.find({ parentCategory: categoryId }).select("_id");
+  let allIds = children.map(c => c._id);
+
+  for (const child of children) {
+    const subChildren = await getAllChildCategoryIds(child._id);
+    allIds = [...allIds, ...subChildren];
+  }
+  return allIds;
+};
+
+
+
 export const createProduct = async (req, res) => {
   try {
-    const { brand, title, description } = req.body;
+    const { brand, title, description, categoryId: bodyCategoryId, categories: bodyCategories } = req.body;
     const sellerId = req.user?._id;
     const productBannerImages = req.files;
+
+    // Support both categoryId and categories (as singular ID) from frontend
+    const categoryId = bodyCategoryId || bodyCategories;
 
     if (!sellerId || !mongoose.Types.ObjectId.isValid(sellerId)) {
       return sendBadRequestResponse(res, "Invalid or missing seller ID");
@@ -41,15 +58,26 @@ export const createProduct = async (req, res) => {
 
     if (!title) return sendBadRequestResponse(res, "Title is required");
 
-    if (!selectedBrand.categories || selectedBrand.categories.length === 0) {
-      return sendBadRequestResponse(res, "This brand doesn't have any categories assigned");
-    }
+    let categories = [];
 
-    const categories = selectedBrand.categories;
-
-    const categoriesExist = await CategoryModel.find({ _id: { $in: categories } });
-    if (categoriesExist.length !== categories.length) {
-      return sendNotFoundResponse(res, "Some categories not found");
+    if (categoryId) {
+      if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+        return sendBadRequestResponse(res, "Invalid Category ID");
+      }
+      const categoryExists = await CategoryModel.findById(categoryId);
+      if (!categoryExists) {
+        return sendNotFoundResponse(res, "Category not found");
+      }
+      // Fetch full hierarchy (Child -> Parent -> Root)
+      categories = [categoryId];
+    } else if (selectedBrand.categories && selectedBrand.categories.length > 0) {
+      categories = selectedBrand.categories;
+      const categoriesExist = await CategoryModel.find({ _id: { $in: categories } });
+      if (categoriesExist.length !== categories.length) {
+        return sendNotFoundResponse(res, "Some brand categories not found");
+      }
+    } else {
+      return sendBadRequestResponse(res, "Category is required");
     }
 
     const existingProduct = await Product.findOne({
@@ -141,6 +169,7 @@ export const getProductById = async (req, res) => {
       title: product.title,
       sellerId: product.sellerId,
       description: product.description,
+      productBanner: product.productBanner,
       isActive: product.isActive,
       view: product.view,
       rating: product.rating,
@@ -183,8 +212,10 @@ export const getSellerProducts = async (req, res) => {
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { brand, title, description, isActive } = req.body;
+    const { brand, title, description, isActive, categoryId: bodyCategoryId, categories: bodyCategories } = req.body;
+    const categoryId = bodyCategoryId || bodyCategories;
     const sellerId = req.user?._id;
+    const userRole = req.user?.role;
     const productBannerImages = req.files;
 
     if (!sellerId || !mongoose.Types.ObjectId.isValid(sellerId)) {
@@ -195,16 +226,32 @@ export const updateProduct = async (req, res) => {
       return sendBadRequestResponse(res, "Invalid product ID");
     }
 
-    const product = await Product.findOne({ _id: id, sellerId });
-    if (!product) return sendNotFoundResponse(res, "Product not found");
+    const product = await Product.findById(id);
+    if (!product) {
+      return sendNotFoundResponse(res, "Product not found");
+    }
 
-    const updateData = {};
+    // Authorization check
+    if (userRole === 'seller' && product.sellerId.toString() !== sellerId.toString()) {
+      return sendBadRequestResponse(res, "You can only update your own products");
+    }
 
-    if (title && title !== product.title) updateData.title = title;
-    if (description !== undefined && description !== product.description) updateData.description = description;
-    if (isActive !== undefined && isActive !== product.isActive) updateData.isActive = isActive;
+    let updateData = {};
 
-    if (brand && brand !== product.brand.toString()) {
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    if (categoryId) {
+      if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+        return sendBadRequestResponse(res, "Invalid Category ID");
+      }
+      const categoryExists = await CategoryModel.findById(categoryId);
+      if (!categoryExists) {
+        return sendNotFoundResponse(res, "Category not found");
+      }
+      updateData.categories = [categoryId];
+    } else if (brand && brand !== product.brand.toString()) {
       if (!mongoose.Types.ObjectId.isValid(brand)) {
         return sendBadRequestResponse(res, "Invalid brand ID");
       }
@@ -218,17 +265,12 @@ export const updateProduct = async (req, res) => {
 
       const selectedBrand = await brandModel.findById(brand);
       if (selectedBrand && selectedBrand.categories && selectedBrand.categories.length > 0) {
-        const newCategories = selectedBrand.categories.map(cat => cat.toString());
-        const currentCategories = product.categories.map(cat => cat.toString());
-
-        if (JSON.stringify(newCategories.sort()) !== JSON.stringify(currentCategories.sort())) {
-          updateData.categories = selectedBrand.categories;
-        }
+        updateData.categories = selectedBrand.categories;
       }
     }
 
     if (productBannerImages && productBannerImages.length > 0) {
-      let productBannerUrls = [...product.productBanner];
+      let productBannerUrls = [...(product.productBanner || [])];
 
       for (let i = 0; i < productBannerImages.length; i++) {
         const file = productBannerImages[i];
@@ -322,7 +364,20 @@ export const getProductByCategory = async (req, res) => {
       return sendBadRequestResponse(res, "Valid categoryId is required");
     }
 
-    const products = await Product.find({ categories: categoryId })
+    // Step 1: Find all child categories recursively (including nested ones)
+    const allChildIds = await getAllChildCategoryIds(categoryId);
+
+    // Step 2: Create a list of ObjectIds to search
+    // We explicitly map everything to mongoose.Types.ObjectId to ensure the $in query works perfectly
+    const categoryIds = [
+      new mongoose.Types.ObjectId(categoryId),
+      ...allChildIds.map(id => new mongoose.Types.ObjectId(id))
+    ];
+
+
+
+    // Step 3: Find products that match ANY of these categories
+    const products = await Product.find({ categories: { $in: categoryIds } })
       .populate("sellerId")
       .populate("brand")
       .populate("categories");
@@ -424,7 +479,7 @@ export const getProductFilters = async (req, res) => {
     });
 
   } catch (error) {
-    console.log("error while getProductFilters", error.message);
+
     return sendErrorResponse(res, 500, "Error while getProductFilters", error);
   }
 };
@@ -519,7 +574,7 @@ export const searchProducts = async (req, res) => {
     return sendSuccessResponse(res, "Products fetched successfully", formattedProducts)
 
   } catch (error) {
-    console.log("error while searchProducts", error.message)
+
     return sendErrorResponse(res, 500, "error while searchProducts", error)
   }
 }
@@ -538,7 +593,7 @@ export const getProductVraintByproductId = async (req, res) => {
     return sendSuccessResponse(res, "getProductVraintByproductId featched successfully", vraints);
 
   } catch (error) {
-    console.log("Erro while getProductVraintByproductId", error);
+
     return sendErrorResponse(res, 500, "Errro while getProductVraintByproductId", error);
   }
 }
@@ -584,7 +639,7 @@ export const getVraintSizesByColorName = async (req, res) => {
     );
 
   } catch (error) {
-    console.log("Error while getVraintSizesByColorName", error);
+
     return sendErrorResponse(
       res,
       500,

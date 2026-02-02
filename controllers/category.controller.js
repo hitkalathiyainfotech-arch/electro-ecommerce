@@ -6,7 +6,7 @@ import { deleteFromS3, updateS3, uploadToS3 } from "../utils/s3Service.js";
 
 export const createNewCategory = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, parentCategory } = req.body;
     const { _id } = req.user;
     const categoryImage = req.file;
 
@@ -23,34 +23,50 @@ export const createNewCategory = async (req, res) => {
       img = await uploadToS3(categoryImage, "uploads")
     }
 
-    const category = await categoryModel.create({
+    const categoryData = {
       name: name,
       image: img,
       sellerId: _id
-    })
+    };
+
+    if (parentCategory && mongoose.Types.ObjectId.isValid(parentCategory)) {
+      categoryData.parentCategory = parentCategory;
+    }
+
+    const category = await categoryModel.create(categoryData);
 
     await category.save();
 
     return sendSuccessResponse(res, "Category Add Successfully", category);
 
   } catch (error) {
-    console.log("error while create category : " + error.message)
+
     return sendErrorResponse(res, 500, "error while create category", error)
   }
 }
 
 export const getAllCategory = async (req, res) => {
   try {
-    const category = await categoryModel.find({})
+    const { parentCategory } = req.query;
+    let filter = {};
+
+    // Filter by parentCategory if provided (use 'null' string for root categories)
+    if (parentCategory === "null") {
+      filter.parentCategory = null;
+    } else if (parentCategory) {
+      filter.parentCategory = parentCategory;
+    }
+
+    const category = await categoryModel.find(filter)
       .populate("sellerId", "firstName mobileNo email avatar role")
       .sort({ createdAt: -1 })
 
-    return sendSuccessResponse(res, "All Category Featched Successfully", {
+    return sendSuccessResponse(res, "All Category Fetched Successfully", {
       total: category.length,
       category
     })
   } catch (error) {
-    console.log("error While Get All Category" + error.message)
+
     return sendErrorResponse(res, 500, "error While Get All Category", error)
   }
 }
@@ -65,21 +81,32 @@ export const getCategoryById = async (req, res) => {
 
     const category = await categoryModel.findById(id)
       .populate("sellerId", "firstName mobileNo email avatar role")
+      .populate("parentCategory", "name image")
 
     if (!category) {
       return sendBadRequestResponse(res, "Category not found")
     }
 
-    const childCategories = await categoryModel.find({ parentCategory: id })
+    // Level 1: Get direct children (e.g., "Mobile Phones", "Mobile Accessories")
+    const sections = await categoryModel.find({ parentCategory: id });
+
+    // Level 2: Get children of those sections (e.g., "Android", "iOS" under "Mobile Phones")
+    const categoryTree = await Promise.all(sections.map(async (section) => {
+      const subCategories = await categoryModel.find({ parentCategory: section._id });
+      return {
+        ...section.toObject(),
+        childCategories: subCategories // These are the actual items like Android, iOS
+      }
+    }));
 
     return sendSuccessResponse(res, "Category fetched successfully", {
       category,
-      childCategories,
-      hasChild: childCategories.length > 0
+      sections: categoryTree,
+      hasChild: categoryTree.length > 0
     })
 
   } catch (error) {
-    console.log("error while getCategoryById", error.message)
+
     return sendErrorResponse(res, 500, "error while getCategoryById", error)
   }
 }
@@ -108,7 +135,7 @@ export const updateCategory = async (req, res) => {
 
     return sendSuccessResponse(res, "Category updated", category);
   } catch (error) {
-    console.log("Error while update Category");
+
     return sendErrorResponse(res, 500, "Error while update Category", error);
   }
 };
@@ -118,7 +145,12 @@ export const deleteCategory = async (req, res) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendBadRequestResponse(res, "somthing went wrong in ID")
+      return sendBadRequestResponse(res, "Invalid ID format")
+    }
+
+    const hasChildren = await categoryModel.findOne({ parentCategory: id });
+    if (hasChildren) {
+      return sendBadRequestResponse(res, "Cannot delete category containing sub-categories. Delete children first.");
     }
 
 
@@ -129,7 +161,7 @@ export const deleteCategory = async (req, res) => {
     return sendSuccessResponse(res, "Category deleted Successfully", category)
 
   } catch (error) {
-    console.log("error while Delete Category", error.message);
+
     return sendErrorResponse(res, 500, "error while Delete Category", error)
   }
 }
@@ -154,45 +186,7 @@ export const searchCategory = async (req, res) => {
       result
     })
   } catch (error) {
-    console.log("Error while Search category", error.message);
+
     return sendErrorResponse(res, 500, "Error while Search category", error);
-  }
-}
-
-export const addChildCategory = async (req, res) => {
-  try {
-    const { parentId } = req.params
-    const { childCategoryId } = req.body
-
-    if (!mongoose.Types.ObjectId.isValid(parentId)) {
-      return sendBadRequestResponse(res, "Invalid parentId")
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(childCategoryId)) {
-      return sendBadRequestResponse(res, "Invalid chaildCategoryId")
-    }
-
-    const parentCategory = await categoryModel.findById(parentId)
-    if (!parentCategory) {
-      return sendBadRequestResponse(res, "Parent category not found")
-    }
-
-    const childCategory = await categoryModel.findById(childCategoryId)
-    if (!childCategory) {
-      return sendBadRequestResponse(res, "Child category not found")
-    }
-
-    childCategory.parentCategory = parentId
-    await childCategory.save()
-
-    return sendSuccessResponse(
-      res,
-      "Child category added successfully",
-      childCategory
-    )
-
-  } catch (error) {
-    console.log("Error while adding child category", error.message)
-    return sendErrorResponse(res, 500, "Error while adding child category", error)
   }
 }

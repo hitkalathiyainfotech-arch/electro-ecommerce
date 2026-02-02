@@ -73,7 +73,7 @@ export const getAllBrands = async (req, res) => {
 
     return sendSuccessResponse(res, "All brands featched successfully", brands);
   } catch (error) {
-    console.log("ERROR WHILE get all Brand")
+
     return sendSuccessResponse(res, 500, "ERROR WHILE get all Brand", error)
   }
 }
@@ -85,7 +85,7 @@ export const getSellerBrands = async (req, res) => {
 
     return sendSuccessResponse(res, "Get Seller Brands successfully", brand);
   } catch (error) {
-    console.log("Error while get seller brand by id" + error.message);
+
     return sendErrorResponse(res, 500, "Error while get seller brand By Id", error)
   }
 }
@@ -110,7 +110,7 @@ export const getBrandsById = async (req, res) => {
     return sendSuccessResponse(res, "brands featched successfully", brands);
 
   } catch (error) {
-    console.log("Error while get brand by id" + error.message);
+
     return sendErrorResponse(res, 500, "Error while get brand By Id", error)
   }
 }
@@ -222,7 +222,7 @@ export const searchBrand = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error while searching brand:", error.message);
+
     return sendErrorResponse(res, 500, "Error while searching brand", error.message);
   }
 };
@@ -245,7 +245,30 @@ export const getProductsByBrandId = async (req, res) => {
       products
     })
   } catch (error) {
-    console.log("Error Whle getProductsByBrandId", error);
+
     return sendErrorResponse(res, 500, "Error while getProductsByBrandId", error)
   }
 }
+
+export const getBrandsByCategoryId = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return sendBadRequestResponse(res, "Invalid category ID");
+    }
+
+    const brands = await brandModel.find({
+      categories: { $in: [categoryId] }
+    })
+      .sort({ brandName: 1 });
+
+    return sendSuccessResponse(res, "Brands fetched successfully", {
+      total: brands.length,
+      brands
+    });
+  } catch (error) {
+
+    return sendErrorResponse(res, 500, "Error while fetching brands by category", error);
+  }
+};

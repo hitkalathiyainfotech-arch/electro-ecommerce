@@ -5,8 +5,8 @@ import { createAdminController, getAllSeller, getSeller, newSellerController, se
 import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/response.utils.js';
 import { deleteFromS3, deleteManyFromS3, listBucketObjects, updateS3, uploadToS3 } from '../utils/s3Service.js';
 import { upload } from '../helper/imageUplode.js';
-import { addChildCategory, createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
-import { createBrand, deleteBrand, getAllBrands, getBrandsById, getProductsByBrandId, getSellerBrands, searchBrand, updateBrandById } from '../controllers/brand.controller.js';
+import { createNewCategory, deleteCategory, getAllCategory, getCategoryById, searchCategory, updateCategory } from '../controllers/category.controller.js';
+import { createBrand, deleteBrand, getAllBrands, getBrandsById, getProductsByBrandId, getSellerBrands, searchBrand, updateBrandById, getBrandsByCategoryId } from '../controllers/brand.controller.js';
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controllers/wishlist.controller.js';
 import { createProduct, deleteProduct, getAllProduct, getProductByCategory, getProductById, getProductFilters, getProductsByBrand, getProductVraintByproductId, getSellerProducts, getVraintSizesByColorName, searchProducts, updateProduct } from '../controllers/product.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, getSellerProductVarient, updateProductVariant } from '../controllers/productVariant.controller.js';
@@ -75,7 +75,6 @@ indexRoutes.get("/getCategoryById/:id", getCategoryById)
 indexRoutes.patch("/updateCategoryById/:id", adminAuth, upload.single("categoryImage"), updateCategory)
 indexRoutes.delete("/deleteCategory/:id", adminAuth, deleteCategory)
 indexRoutes.get("/searchCategory", searchCategory)
-indexRoutes.post("/addChildCategory/:parentId", adminAuth, addChildCategory);
 
 //brand 
 indexRoutes.post("/createBrand", sellerAndAdminAuth, upload.single("brandImage"), createBrand)
@@ -86,6 +85,7 @@ indexRoutes.put("/updateBrandById/:id", sellerAndAdminAuth, upload.single("brand
 indexRoutes.delete("/deleteBrand/:id", sellerAndAdminAuth, deleteBrand)
 indexRoutes.get("/searchBrand", searchBrand)
 indexRoutes.get("/getProductsByBrandId/:id", getProductsByBrandId)
+indexRoutes.get("/getBrandsByCategoryId/:categoryId", getBrandsByCategoryId)
 
 //product
 indexRoutes.post("/createProduct", sellerAndAdminAuth, upload.array("productBanner", 10), createProduct);
