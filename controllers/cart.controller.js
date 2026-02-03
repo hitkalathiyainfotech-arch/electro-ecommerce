@@ -266,7 +266,7 @@ export const clearCart = async (req, res) => {
 export const applyComboToCart = async (req, res) => {
   try {
     const userId = req.user?._id;
-    const { quantity } = req.body;
+    const { quantity, comboItemIds } = req.body;
     const { comboId } = req.params;
     if (!userId) return sendBadRequestResponse(res, "User ID required");
     if (!comboId || !mongoose.Types.ObjectId.isValid(comboId)) return sendBadRequestResponse(res, "Valid comboId required");
@@ -283,14 +283,42 @@ export const applyComboToCart = async (req, res) => {
     if (!combo) return sendNotFoundResponse(res, "Combo not found");
     if (!combo.isActive) return sendBadRequestResponse(res, "Combo is not active");
 
-    if (cart.appliedCombos.some(c => c.comboId.toString() === comboId)) {
-      return sendBadRequestResponse(res, "Combo already applied");
-    }
+    // Only check if combo is already applied IF we are not selectively adding items?
+    // Actually, if we are adding items, we might be adding MORE items to an existing combo bundle.
+    // The previous check "if (cart.appliedCombos.some...)" prevents adding the combo *again*.
+    // But if we are adding specific items, maybe we are "updating" the combo?
+    // The user requirement implies "Adding items".
+    // If I add items selectively, I should probably allow it even if combo is "technically" there?
+    // But simplistic approach: If combo is in `appliedCombos`, maybe just proceed.
+    // However, the `appliedCombos` array tracks the discount application.
+    // If I add partial items, the discount is re-calculated in `recalculateCart`.
+    // So the check below might prevent adding more items if the combo is already tracked.
+    // Let's relax it? or Keep it?
+    // If I add item A, it adds combo to appliedCombos. Next time I add item B, it says "Combo already applied" and returns error.
+    // This blocks the user from adding remaining items later!
+    // I should REMOVE this blocking check and rely on logic.
+    // OR create a check that only blocks if *all possible items* are already there?
+    // For now, I will remove the block or make it smarter.
+    // If I have items from this combo, `appliedCombos` will be there.
+    // I should simply allow adding more items.
+
+    // if (cart.appliedCombos.some(c => c.comboId.toString() === comboId)) {
+    //   return sendBadRequestResponse(res, "Combo already applied");
+    // }
+    // I will comment this out or remove it to allow incremental addition of items.
 
     let totalComboOriginalPrice = 0;
     let totalComboDiscountedPrice = 0;
 
-    for (const cp of combo.products) {
+    const productsToProcess = (comboItemIds && Array.isArray(comboItemIds) && comboItemIds.length > 0)
+      ? combo.products.filter(p => comboItemIds.includes(p._id.toString()))
+      : combo.products;
+
+    if (productsToProcess.length === 0) {
+      return sendBadRequestResponse(res, "No valid items selected from this combo");
+    }
+
+    for (const cp of productsToProcess) {
       const prod = cp.product;
       const variant = cp.variant;
       const comboQty = (cp.quantity || 1) * quantity;
@@ -351,7 +379,8 @@ export const applyComboToCart = async (req, res) => {
         (variant ? String(i.variant) === String(variant._id) : !i.variant) &&
         String(i.selectedColor || "") === String(selectedColor || "") &&
         String(i.selectedSize || "") === String(selectedSize || "") &&
-        String(i.comboOffer || null) === String(comboId || null)
+        String(i.comboOffer || null) === String(comboId || null) &&
+        String(i.comboItemId || "") === String(cp._id || "")
       );
 
       if (existing) {
@@ -363,6 +392,7 @@ export const applyComboToCart = async (req, res) => {
           product: prod._id,
           variant: variant?._id || null,
           comboOffer: comboId,
+          comboItemId: cp._id,
           selectedColor: selectedColor || null,
           selectedSize: selectedSize || null,
           price: basePrice,
@@ -377,12 +407,14 @@ export const applyComboToCart = async (req, res) => {
       }
     }
 
-    const discountApplied = Math.round(totalComboOriginalPrice * (combo.discountPercentage / 100));
-
-    cart.appliedCombos.push({
-      comboId,
-      discountApplied
-    });
+    // Only push to appliedCombos if NOT already there
+    if (!cart.appliedCombos.some(c => c.comboId && c.comboId.toString() === comboId)) {
+      const discountApplied = Math.round(totalComboOriginalPrice * (combo.discountPercentage / 100));
+      cart.appliedCombos.push({
+        comboId,
+        discountApplied
+      });
+    }
 
     if (cart.appliedCombos.length > 0) {
       await cart.populate("appliedCombos.comboId");

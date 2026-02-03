@@ -20,6 +20,11 @@ const cartItemSchema = new mongoose.Schema(
     selectedColor: { type: String },
     selectedSize: { type: String },
 
+    comboItemId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false
+    },
+
     price: { type: Number, required: true },
     discountedPrice: { type: Number },
     quantity: { type: Number, required: true, min: 1 },

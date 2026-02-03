@@ -42,23 +42,15 @@ export const createOrder = async (req, res) => {
       return sendBadRequestResponse(res, "Please select a shipping address");
     }
 
-    // Validate Payment Method
-    const validMethods = ["cod", "card", "emi", "upi", "netbanking", "wallet"];
+    const validMethods = ["cod", "card", "emi", "upi", "netbanking"];
     if (!validMethods.includes(paymentMethod)) {
-      return sendBadRequestResponse(res, "Invalid payment method. Allowed: COD, CARD, EMI, UPI, NETBANKING, WALLET");
+      return sendBadRequestResponse(res, "Invalid payment method. Allowed: COD, CARD, EMI, UPI, NETBANKING");
     }
 
-    // EMI Eligibility Check
     if (paymentMethod === "emi") {
-      // Check if ANY item in the cart does NOT support EMI
-      const nonEmiItem = cart.items.find(item => {
-        // If variant exists, check variant.emi, otherwise check product.emi
-        // We assume default true if undefined, unless explicitly false. 
-        // But since the user defined the schema field, we should respect the value.
-        // Let's assume strict check: must be explicitly true? Or just not false? 
-        // Given my previous default was true, I'll treat 'undefined' as true for backward comp roughly, 
-        // but 'false' handles the restriction.
+      let eligibleEmiTotal = 0;
 
+      cart.items.forEach(item => {
         let isEmiAllowed = true;
 
         if (item.variant && item.variant.emi !== undefined) {
@@ -67,17 +59,17 @@ export const createOrder = async (req, res) => {
           isEmiAllowed = item.product.emi;
         }
 
-        // If it's explicitly false, then this item is the "nonEmiItem"
-        return isEmiAllowed === false;
+        if (isEmiAllowed !== false) {
+          const itemPrice = item.discountedPrice || item.price;
+          eligibleEmiTotal += itemPrice * item.quantity;
+        }
       });
 
-      if (nonEmiItem) {
-        const itemName = nonEmiItem.product?.title || "An item";
-        return sendBadRequestResponse(res, `EMI is not available for ${itemName}`);
-      }
-
-      if (cart.finalTotal < 3000) { // Standard min amount for EMI
-        return sendBadRequestResponse(res, "Order total must be at least ₹3000 for EMI.");
+      if (eligibleEmiTotal < 3000) {
+        if (eligibleEmiTotal === 0) {
+          return sendBadRequestResponse(res, "None of the items in your cart are available for EMI.");
+        }
+        return sendBadRequestResponse(res, `EMI is only available for orders with eligible items totaling ₹3000 or more. Your eligible amount is ₹${eligibleEmiTotal}`);
       }
     }
 

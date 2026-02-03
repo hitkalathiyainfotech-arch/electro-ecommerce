@@ -169,7 +169,7 @@ indexRoutes.post("/payment/:orderId/verify", UserAuth, paymentController.verifyP
 indexRoutes.get("/payment/:orderId/status", UserAuth, paymentController.getPaymentStatus);
 indexRoutes.post("/payment/:orderId/refund", UserAuth, paymentController.processRefund);
 indexRoutes.post("/payment/webhook", paymentController.handleRazorpayWebhook);
-indexRoutes.post("/payment/:orderId/verify-emi", UserAuth, paymentController.verifyEMIPayment);
+
 
 //reviw.routes.js
 indexRoutes.post('/createReview', UserAuth, createReview);
