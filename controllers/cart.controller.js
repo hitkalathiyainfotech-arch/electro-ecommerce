@@ -19,11 +19,14 @@ export const addToCart = async (req, res) => {
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = await Cart.create({ userId, items: [] });
 
-    // Standard Single Item Logic
     if (!productId || !mongoose.Types.ObjectId.isValid(productId)) return sendBadRequestResponse(res, "Valid productId required");
 
     const product = await Product.findById(productId).lean();
     if (!product) return sendNotFoundResponse(res, "Product not found");
+
+    if (!variantId && product.variantId && product.variantId.length > 0) {
+      return sendBadRequestResponse(res, "Please select a variant (Color/Size)");
+    }
 
     let stock = 0;
     let price = 0;
@@ -40,23 +43,40 @@ export const addToCart = async (req, res) => {
       const colorData = variant.color;
       if (!colorData || !colorData.colorName) return sendBadRequestResponse(res, "Color data not available");
 
+      if (req.body.selectedColor && req.body.selectedColor.toLowerCase() !== colorData.colorName.toLowerCase()) {
+        return sendBadRequestResponse(res, `Selected color '${req.body.selectedColor}' does not match this variant's color '${colorData.colorName}'`);
+      }
+
       finalColor = colorData.colorName;
 
       if (Array.isArray(colorData.sizes) && colorData.sizes.length > 0) {
         if (!selectedSize) return sendBadRequestResponse(res, "Size selection is required for this variant");
+
         const sizeData = colorData.sizes.find(x => x.sizeValue === selectedSize);
-        if (!sizeData) return sendBadRequestResponse(res, `Size ${selectedSize} not available`);
-        if (!sizeData.stock || sizeData.stock <= 0) return sendBadRequestResponse(res, `Size ${selectedSize} is out of stock`);
+        if (!sizeData) return sendBadRequestResponse(res, `Size ${selectedSize} not available in this color`);
+
+        if (!sizeData.stock || sizeData.stock <= 0) {
+          return sendBadRequestResponse(res, `Size ${selectedSize} is out of stock`);
+        }
+
         finalSize = selectedSize;
-        stock = sizeData.stock || 0;
+        stock = sizeData.stock;
         price = sizeData.price || 0;
         discountedPrice = sizeData.discountedPrice || null;
+
       } else {
         finalSize = null;
-        stock = colorData.stock || 0;
+
+        if (!colorData.stock || colorData.stock <= 0) {
+          return sendBadRequestResponse(res, "This variant is out of stock");
+        }
+
+        stock = colorData.stock;
         price = colorData.price || 0;
         discountedPrice = colorData.discountedPrice || null;
       }
+
+
     } else {
       price = product.price ?? product.sellingPrice ?? 0;
       discountedPrice = product.discountedPrice ?? null;
@@ -115,7 +135,6 @@ export const addToCart = async (req, res) => {
     cart.estimatedDeliveryDate = deliveryInfo.estimatedDeliveryDate;
     cart.deliveryCharge = selectedService === "regular" ? 10 : 12;
 
-    // Save first to ensure population checks DB or correctly handles the new ID
     await cart.save();
 
     if (cart.appliedCombos.length > 0) {
@@ -148,7 +167,9 @@ export const getCart = async (req, res) => {
       .populate("items.comboOffer")
       .populate("appliedCombos.comboId");
 
-    if (!cart) cart = await Cart.create({ userId, items: [] });
+    if (!cart) {
+      return sendSuccessResponse(res, "Cart fetched", cart);
+    }
 
     cart.items = cart.items.map(item => {
       if (item.variant && item.variant.color && Array.isArray(item.variant.color.sizes)) {
@@ -162,11 +183,21 @@ export const getCart = async (req, res) => {
 
     recalculateCart(cart);
 
+    const formatDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      const day = d.getDate();
+      const month = d.toLocaleString('en-US', { month: 'short' });
+      const year = d.getFullYear();
+      return `${day} ${month}, ${year}`;
+    };
+
     const cartWithCourier = {
       ...cart.toObject(),
+      estimatedDeliveryDate: formatDate(cart.estimatedDeliveryDate),
       courierInfo: {
         service: cart.courierService,
-        estimatedDeliveryDate: cart.estimatedDeliveryDate,
+        estimatedDeliveryDate: formatDate(cart.estimatedDeliveryDate),
         deliveryCharge: cart.deliveryCharge
       }
     };
@@ -231,7 +262,33 @@ export const removeFromCart = async (req, res) => {
     const cart = await Cart.findOne({ userId }).populate("appliedCombos.comboId");
     if (!cart) return sendNotFoundResponse(res, "Cart not found");
 
-    cart.items = cart.items.filter(item => item._id.toString() !== cartItemId);
+    const itemIndex = cart.items.findIndex(item => item._id.toString() === cartItemId);
+    if (itemIndex === -1) {
+      return sendNotFoundResponse(res, "Item not found in cart");
+    }
+
+    const itemToRemove = cart.items[itemIndex];
+    if (!itemToRemove) {
+      return sendNotFoundResponse(res, "Item not found");
+    }
+
+    const comboOfferId = itemToRemove.comboOffer ? itemToRemove.comboOffer.toString() : null;
+
+    cart.items.splice(itemIndex, 1);
+
+    if (comboOfferId) {
+      const remainingComboItems = cart.items.some(
+        item => item.comboOffer && item.comboOffer.toString() === comboOfferId
+      );
+
+      if (!remainingComboItems) {
+        cart.appliedCombos = cart.appliedCombos.filter(c => {
+          if (!c.comboId) return false;
+          const currentComboId = c.comboId._id ? c.comboId._id.toString() : c.comboId.toString();
+          return currentComboId !== comboOfferId;
+        });
+      }
+    }
 
     recalculateCart(cart);
     await cart.save();
@@ -282,30 +339,6 @@ export const applyComboToCart = async (req, res) => {
 
     if (!combo) return sendNotFoundResponse(res, "Combo not found");
     if (!combo.isActive) return sendBadRequestResponse(res, "Combo is not active");
-
-    // Only check if combo is already applied IF we are not selectively adding items?
-    // Actually, if we are adding items, we might be adding MORE items to an existing combo bundle.
-    // The previous check "if (cart.appliedCombos.some...)" prevents adding the combo *again*.
-    // But if we are adding specific items, maybe we are "updating" the combo?
-    // The user requirement implies "Adding items".
-    // If I add items selectively, I should probably allow it even if combo is "technically" there?
-    // But simplistic approach: If combo is in `appliedCombos`, maybe just proceed.
-    // However, the `appliedCombos` array tracks the discount application.
-    // If I add partial items, the discount is re-calculated in `recalculateCart`.
-    // So the check below might prevent adding more items if the combo is already tracked.
-    // Let's relax it? or Keep it?
-    // If I add item A, it adds combo to appliedCombos. Next time I add item B, it says "Combo already applied" and returns error.
-    // This blocks the user from adding remaining items later!
-    // I should REMOVE this blocking check and rely on logic.
-    // OR create a check that only blocks if *all possible items* are already there?
-    // For now, I will remove the block or make it smarter.
-    // If I have items from this combo, `appliedCombos` will be there.
-    // I should simply allow adding more items.
-
-    // if (cart.appliedCombos.some(c => c.comboId.toString() === comboId)) {
-    //   return sendBadRequestResponse(res, "Combo already applied");
-    // }
-    // I will comment this out or remove it to allow incremental addition of items.
 
     let totalComboOriginalPrice = 0;
     let totalComboDiscountedPrice = 0;
@@ -407,7 +440,6 @@ export const applyComboToCart = async (req, res) => {
       }
     }
 
-    // Only push to appliedCombos if NOT already there
     if (!cart.appliedCombos.some(c => c.comboId && c.comboId.toString() === comboId)) {
       const discountApplied = Math.round(totalComboOriginalPrice * (combo.discountPercentage / 100));
       cart.appliedCombos.push({
@@ -476,6 +508,11 @@ export const removeComboFromCart = async (req, res) => {
 };
 
 const recalculateCart = (cart) => {
+  // Ensure appliedCoupon is null if it has no couponId (cleanup defaults)
+  if (cart.appliedCoupon && !cart.appliedCoupon.couponId) {
+    cart.appliedCoupon = null;
+  }
+
   if (!cart.items || cart.items.length === 0) {
     cart.totalItems = 0;
     cart.totalPrice = 0;
@@ -487,6 +524,10 @@ const recalculateCart = (cart) => {
     cart.gst = 0;
     cart.subtotal = 0;
     cart.finalTotal = 0;
+
+    // Explicitly clear applied offers for empty cart
+    cart.appliedCombos = [];
+    cart.appliedCoupon = null;
     return;
   }
 
@@ -507,13 +548,11 @@ const recalculateCart = (cart) => {
 
   let comboDiscount = 0;
 
-  // Create a map of total value per comboId calculated from the items actually in the cart
   const comboItemTotals = {};
   cart.items.forEach(i => {
     if (i.comboOffer) {
       const cId = i.comboOffer._id ? i.comboOffer._id.toString() : i.comboOffer.toString();
       if (!comboItemTotals[cId]) comboItemTotals[cId] = 0;
-      // Use discountedPrice if available, as that's the base for further discounts usually, or price
       comboItemTotals[cId] += (i.discountedPrice || i.price) * i.quantity;
     }
   });
@@ -524,7 +563,6 @@ const recalculateCart = (cart) => {
       const cId = c.comboId._id ? c.comboId._id.toString() : c.comboId.toString();
 
       if (c.comboId.discountPercentage) {
-        // Calculate discount ONLY on the total of items associated with this combo
         const applicableTotal = comboItemTotals[cId] || 0;
         const da = Math.round((applicableTotal * c.comboId.discountPercentage) / 100);
         c.discountApplied = da;
@@ -791,7 +829,7 @@ export const removeCouponFromCart = async (req, res) => {
       return sendBadRequestResponse(res, "No coupon applied to cart");
     }
 
-    cart.appliedCoupon = {};
+    cart.appliedCoupon = null;
     await cart.save();
 
     const populatedCart = await Cart.findById(cart._id)

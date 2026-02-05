@@ -154,13 +154,14 @@ indexRoutes.delete("/cart/remove-coupon", UserAuth, cartController.removeCouponF
 // Order endpoints
 indexRoutes.post("/order/create", UserAuth, orderController.createOrder);
 indexRoutes.get("/order/my-orders", UserAuth, orderController.getUserOrders);
+indexRoutes.get("/order/seller/my-orders", sellerAuth, orderController.getSellerOrders);
 indexRoutes.get("/order/:orderId", UserAuth, orderController.getOrderById);
+indexRoutes.get("/order/:orderId/timeline", UserAuth, orderController.getOrderTimeline);
 indexRoutes.get("/order/details/:id", orderController.getOrderByMongoId);
 indexRoutes.patch("/order/:orderId/status", sellerAndAdminAuth, orderController.updateOrderStatus);
 indexRoutes.post("/order/:orderId/cancel", UserAuth, orderController.cancelOrder);
 indexRoutes.post("/order/:orderId/return", UserAuth, orderController.returnOrder);
 indexRoutes.get("/order/admin/all-orders", adminAuth, orderController.getAllOrders);
-indexRoutes.patch("/order/:orderId/item/:itemId/status", orderController.updateOrderItemStatus);
 
 // Payment endpoints (Razorpay)
 indexRoutes.post("/payment/:orderId/initiate", UserAuth, paymentController.initiatePayment);
@@ -169,6 +170,8 @@ indexRoutes.post("/payment/:orderId/verify", UserAuth, paymentController.verifyP
 indexRoutes.get("/payment/:orderId/status", UserAuth, paymentController.getPaymentStatus);
 indexRoutes.post("/payment/:orderId/refund", UserAuth, paymentController.processRefund);
 indexRoutes.post("/payment/webhook", paymentController.handleRazorpayWebhook);
+indexRoutes.post("/payment/:orderId/pay-installment", UserAuth, paymentController.payEMIInstallment);
+indexRoutes.post("/payment/:orderId/verify-installment", UserAuth, paymentController.verifyInstallmentPayment);
 
 
 //reviw.routes.js

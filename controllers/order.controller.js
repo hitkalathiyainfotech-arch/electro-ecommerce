@@ -149,7 +149,7 @@ export const createOrder = async (req, res) => {
           : null
       },
       paymentInfo: {
-        method: paymentMethod, // Already validated
+        method: paymentMethod,
         status: "pending"
       },
       orderStatus: {
@@ -232,11 +232,26 @@ export const getUserOrders = async (req, res) => {
 
     const total = await Order.countDocuments(query);
 
+    const formatDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      const day = d.getDate();
+      const month = d.toLocaleString('en-US', { month: 'short' });
+      const year = d.getFullYear();
+      return `${day} ${month}, ${year}`;
+    };
+
+    const formattedOrders = orders.map(order => {
+      const obj = order.toObject();
+      obj.estimatedDeliveryDate = formatDate(order.estimatedDeliveryDate);
+      return obj;
+    });
+
     return sendSuccessResponse(res, "Orders fetched", {
       total,
       page: parseInt(page),
       limit: parseInt(limit),
-      orders
+      orders: formattedOrders
     });
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
@@ -266,7 +281,19 @@ export const getOrderById = async (req, res) => {
       return sendNotFoundResponse(res, "Order not found");
     }
 
-    return sendSuccessResponse(res, "Order fetched", order);
+    const formatDate = (date) => {
+      if (!date) return null;
+      const d = new Date(date);
+      const day = d.getDate();
+      const month = d.toLocaleString('en-US', { month: 'short' });
+      const year = d.getFullYear();
+      return `${day} ${month}, ${year}`;
+    };
+
+    const orderObj = order.toObject();
+    orderObj.estimatedDeliveryDate = formatDate(order.estimatedDeliveryDate);
+
+    return sendSuccessResponse(res, "Order fetched", orderObj);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -309,79 +336,174 @@ export const updateOrderStatus = async (req, res) => {
     const userId = req.user?._id;
     const role = req.user?.role;
     const { orderId } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, itemId } = req.body;
 
-    if (!userId) return sendBadRequestResponse(res, "User ID required");
-    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
-    if (!status) return sendBadRequestResponse(res, "Status required");
+    if (!userId || !orderId || !status) {
+      return sendBadRequestResponse(res, "Missing required fields");
+    }
+
+    const statusMap = { "Under Progress": "processing" };
+    const normalizedStatus = statusMap[status] || status;
 
     const validStatuses = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "returned"];
-    if (!validStatuses.includes(status)) {
+    if (!validStatuses.includes(normalizedStatus)) {
       return sendBadRequestResponse(res, `Invalid status. Allowed: ${validStatuses.join(", ")}`);
     }
 
-    const order = await Order.findOne({ orderId }).populate("items.product items.variant");
+    const order = await Order.findOne({ orderId });
     if (!order) return sendNotFoundResponse(res, "Order not found");
 
+    const allItemsFinalized = order.items.every(i => ["delivered", "returned", "cancelled"].includes(i.itemStatus));
+    if (allItemsFinalized && normalizedStatus !== "returned") {
+      return sendBadRequestResponse(res, "Order is fully delivered/completed. No further updates allowed.");
+    }
+
     const now = new Date();
+    let updatedCount = 0;
 
-    order.items.forEach(item => {
-      const productOwnerId = item.product?.createdBy;
-      const productOwnerRole = item.product?.createdByRole;
+    for (const item of order.items) {
+      if (itemId && String(item._id) !== String(itemId)) continue;
 
-      if (role === "seller" && String(productOwnerId) !== String(userId)) return;
-      if (productOwnerRole === "admin" && role !== "admin") return;
+      if (role === "seller" && String(item.sellerId) !== String(userId)) continue;
+      if (role !== "admin" && role !== "seller") continue;
 
-      if (item.itemStatus !== status) item.itemStatus = status;
-    });
+      if (item.itemStatus !== "cancelled" && item.itemStatus !== "returned") {
+        const itemHierarchy = ["pending", "confirmed", "processing", "shipped", "delivered"];
+        const oldItemIndex = itemHierarchy.indexOf(item.itemStatus);
+        const newItemIndex = itemHierarchy.indexOf(normalizedStatus);
 
-    order.orderStatus.current = status;
+        // Allow cancellation/return from any state typically, but if normalizedStatus IS one of them
+        // we should just let it pass or handle separately. Here "normalizedStatus" is usually one of the validStatuses.
+        // If normalizedStatus is "cancelled" or "returned", let it update.
+        if (["cancelled", "returned"].includes(normalizedStatus)) {
+          item.itemStatus = normalizedStatus;
+          updatedCount++;
+          continue;
+        }
 
-    const lastHistory = order.orderStatus.history[order.orderStatus.history.length - 1];
-    if (!lastHistory || lastHistory.status !== status) {
-      order.orderStatus.history.push({
-        status,
-        timestamp: now,
-        notes: notes || ""
+        // If trying to set a status that is not in hierarchy (and not cancelled/returned), skip or error.
+        if (newItemIndex === -1) continue;
+
+        // If current status is not in hierarchy (e.g. cancelled), skip
+        if (oldItemIndex === -1) continue;
+
+        // Prevent Backward movement
+        if (newItemIndex < oldItemIndex) {
+          continue;
+        }
+
+        // Prevent Skipping Steps (e.g. Confirmed -> Shipped)
+        // Allowed: 0->1, 1->2, 2->3, 3->4
+        // Logic: newItemIndex must be <= oldItemIndex + 1
+        if (newItemIndex > oldItemIndex + 1) {
+          return sendBadRequestResponse(res, `Cannot update status directly to '${status}'. Please follow the sequence: ${itemHierarchy[oldItemIndex]} -> ${itemHierarchy[oldItemIndex + 1]}.`);
+        }
+
+        item.itemStatus = normalizedStatus;
+        updatedCount++;
+      }
+    }
+
+    if (order.paymentInfo.status === "completed") {
+      order.items.forEach(item => {
+        if (item.itemStatus === "pending") {
+          item.itemStatus = "confirmed";
+        }
       });
     }
 
-    order.timeline = order.timeline || {};
-    switch (status) {
-      case "pending": order.timeline.orderCreated = order.timeline.orderCreated || now; break;
-      case "confirmed": order.timeline.orderConfirmed = order.timeline.orderConfirmed || now; break;
-      case "processing": order.timeline.processingStarted = order.timeline.processingStarted || now; break;
-      case "shipped": order.timeline.orderShipped = order.timeline.orderShipped || now; break;
-      case "delivered":
-        order.timeline.orderDelivered = order.timeline.orderDelivered || now;
-        order.actualDeliveryDate = order.actualDeliveryDate || now;
-        if (order.paymentInfo.status !== "refunded") order.paymentInfo.status = "completed";
+    if (updatedCount === 0) {
+      return sendBadRequestResponse(res, "No valid items found to update or permission denied");
+    }
 
-        if (order.emiInfo?.enabled) {
-          order.emiInfo.emiStatus = "active";
-          order.emiInfo.paidInstallments = order.items.reduce((sum, item) => {
-            return sum + (item.itemStatus === "delivered" ? 1 : 0);
-          }, 0);
-          const nextInstallment = order.emiInfo.installments.find(inst => inst.status === "pending");
-          if (nextInstallment) order.emiInfo.nextPaymentDate = nextInstallment.dueDate;
+    const hierarchy = ["pending", "confirmed", "processing", "shipped", "delivered"];
+
+    let minStatusIndex = hierarchy.length - 1;
+
+    const activeItems = order.items.filter(i => !["cancelled", "returned"].includes(i.itemStatus));
+
+    if (activeItems.length === 0) {
+      const allCancelled = order.items.every(i => i.itemStatus === "cancelled");
+      order.orderStatus.current = allCancelled ? "cancelled" : "returned";
+    } else {
+      let hasProcessing = false;
+      let hasShipped = false;
+      let hasDelivered = false;
+
+      activeItems.forEach(item => {
+        const idx = hierarchy.indexOf(item.itemStatus);
+        if (idx !== -1) {
+          if (idx < minStatusIndex) minStatusIndex = idx;
+          if (item.itemStatus === 'processing') hasProcessing = true;
+          if (item.itemStatus === 'shipped') hasShipped = true;
+          if (item.itemStatus === 'delivered') hasDelivered = true;
         }
-        break;
-      case "cancelled":
-        order.timeline.orderCancelled = order.timeline.orderCancelled || now;
+      });
 
-        if (order.emiInfo?.enabled) order.emiInfo.emiStatus = "failed";
-        break;
-      case "returned":
-        order.timeline.orderReturned = order.timeline.orderReturned || now;
+      let determinedStatus = hierarchy[minStatusIndex];
 
-        if (order.emiInfo?.enabled) order.emiInfo.emiStatus = "failed";
-        break;
+      const hasActivity = hasProcessing || hasShipped || hasDelivered;
+      const hasShippingActivity = hasShipped || hasDelivered;
+
+      if (minStatusIndex < 2 && hasActivity) {
+        determinedStatus = "processing";
+      }
+
+      if (minStatusIndex < 3 && hasShippingActivity) {
+        determinedStatus = "shipped";
+      }
+      if (minStatusIndex < 4 && hasDelivered) {
+        determinedStatus = "delivered";
+      }
+
+      const oldStatusIndex = hierarchy.indexOf(order.orderStatus.current);
+      const newStatusIndex = hierarchy.indexOf(determinedStatus);
+
+      if (oldStatusIndex !== -1 && newStatusIndex !== -1) {
+        if (newStatusIndex < oldStatusIndex) {
+          determinedStatus = order.orderStatus.current;
+        }
+      }
+
+      order.orderStatus.current = determinedStatus;
+    }
+
+    const lastHistory = order.orderStatus.history[order.orderStatus.history.length - 1];
+    if (!lastHistory || lastHistory.status !== order.orderStatus.current) {
+      order.orderStatus.history.push({
+        status: order.orderStatus.current,
+        timestamp: now,
+        notes: notes || `Status updated via item update (${updatedCount} items)`
+      });
+    }
+
+    const globalStatus = order.orderStatus.current;
+    order.timeline = order.timeline || {};
+
+    if (globalStatus === "confirmed") order.timeline.orderConfirmed = order.timeline.orderConfirmed || now;
+    if (globalStatus === "processing") order.timeline.processingStarted = order.timeline.processingStarted || now;
+    if (globalStatus === "shipped") order.timeline.orderShipped = order.timeline.orderShipped || now;
+    if (globalStatus === "delivered") {
+      order.timeline.orderDelivered = order.timeline.orderDelivered || now;
+      order.actualDeliveryDate = order.actualDeliveryDate || now;
+
+      if (order.paymentInfo.method === "cod" && order.paymentInfo.status !== "completed") {
+        order.paymentInfo.status = "completed";
+      }
+      if (order.paymentInfo.status !== "refunded") {
+        order.paymentInfo.status = "completed";
+      }
     }
 
     order.lastUpdated = now;
     await order.save();
 
-    return sendSuccessResponse(res, "Order status updated successfully", order);
+    return sendSuccessResponse(res, "Order status updated successfully", {
+      orderId: order.orderId,
+      currentStatus: order.orderStatus.current,
+      updatedItems: updatedCount
+    });
+
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -509,39 +631,220 @@ export const getAllOrders = async (req, res) => {
   }
 };
 
+
+
 /**
- * Update Item Status in Order
- * PATCH /order/:orderId/item/:itemId/status
+ * Get Seller's Orders
+ * GET /order/seller/my-orders
  */
-export const updateOrderItemStatus = async (req, res) => {
+export const getSellerOrders = async (req, res) => {
   try {
-    const { orderId, itemId } = req.params;
-    const { status } = req.body;
+    const sellerId = req.user?._id;
+    const { status, page = 1, limit = 10 } = req.query;
 
-    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
-    if (!itemId) return sendBadRequestResponse(res, "Item ID required");
-    if (!status) return sendBadRequestResponse(res, "Status required");
+    if (!sellerId) return sendForbiddenResponse(res, "Seller authentication required");
 
-    const validStatuses = ["pending", "confirmed", "shipped", "delivered", "returned", "cancelled"];
-    if (!validStatuses.includes(status)) {
-      return sendBadRequestResponse(res, `Invalid status. Allowed: ${validStatuses.join(", ")}`);
+    let query = { "items.sellerId": sellerId };
+
+    if (status) {
+      query.items = {
+        $elemMatch: {
+          sellerId: sellerId,
+          itemStatus: status
+        }
+      };
     }
 
-    const order = await Order.findOne({ orderId });
+    const skip = (page - 1) * limit;
+
+    const orders = await Order.find(query)
+      .populate("userId", "name email phone")
+      .populate("items.product", "title productBanner price")
+      .populate("items.variant", "variantTitle sku")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Order.countDocuments(query);
+
+    const sellerOrders = orders.map(order => {
+      const sellerItems = order.items.filter(item =>
+        String(item.sellerId) === String(sellerId) &&
+        (!status || item.itemStatus === status)
+      );
+
+      const sellerSubtotal = sellerItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+      const sellerTotalDiscounted = sellerItems.reduce((acc, item) => acc + ((item.discountedPrice || item.price) * item.quantity), 0);
+
+      return {
+        _id: order._id,
+        orderId: order.orderId,
+        userId: order.userId,
+        items: sellerItems,
+        shippingAddress: order.shippingAddress,
+        paymentInfo: order.paymentInfo,
+        orderStatus: order.orderStatus,
+        createdAt: order.createdAt,
+        sellerSummary: {
+          subtotal: sellerSubtotal,
+          totalDiscounted: sellerTotalDiscounted,
+          count: sellerItems.length
+        }
+      };
+    });
+
+    return sendSuccessResponse(res, "Seller orders fetched", {
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      orders: sellerOrders
+    });
+  } catch (error) {
+    return sendErrorResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * Get Order Timeline
+ * GET /order/:orderId/timeline
+ */
+export const getOrderTimeline = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) return sendBadRequestResponse(res, "User ID required");
+
+    let order = await Order.findOne({ orderId, userId });
+    if (!order && mongoose.Types.ObjectId.isValid(orderId)) {
+      order = await Order.findOne({ _id: orderId, userId });
+    }
+
     if (!order) {
       return sendNotFoundResponse(res, "Order not found");
     }
 
-    const itemIndex = order.items.findIndex(item => item._id.toString() === itemId);
-    if (itemIndex < 0) {
-      return sendNotFoundResponse(res, "Item not found in order");
+    const { itemId } = req.query;
+
+    const formatTimelineDate = (timestamp) => {
+      if (!timestamp) return "";
+      const date = new Date(timestamp);
+
+      const mon = date.toLocaleString('en-US', { month: 'short' });
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      let hh = date.getHours();
+      const min = String(date.getMinutes()).padStart(2, '0');
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      hh = hh % 12;
+      hh = hh ? hh : 12;
+      const strTime = String(hh).padStart(2, '0') + ':' + min + ' ' + ampm;
+
+      return `${mon} ${dd} ${yyyy} ${strTime}`;
+    };
+
+    const validSteps = [
+      { key: 'confirmed', label: 'Order Confirmed', msg: 'Seller has confirmed your order.' },
+      { key: 'processing', label: 'Under Progress', msg: 'Seller is packing your order.' },
+      { key: 'shipped', label: 'Shipped', msg: 'Your order has been shipped and is on its way.' },
+      { key: 'delivered', label: 'Delivered', msg: 'Your order has been delivered successfully.' }
+    ];
+
+    let currentStatus = order.orderStatus.current;
+
+    if (itemId) {
+      const item = order.items.find(i => String(i._id) === String(itemId));
+      if (item) {
+        currentStatus = item.itemStatus;
+      }
     }
 
-    order.items[itemIndex].itemStatus = status;
-    order.lastUpdated = new Date();
-    await order.save();
+    const actualHistory = order.orderStatus.history || [];
+    let finalTimeline = [];
 
-    return sendSuccessResponse(res, "Item status updated", order.items[itemIndex]);
+    const getHistoryEntry = (statusKey) => {
+      return actualHistory.filter(h => h.status === statusKey).pop();
+    };
+
+    if (['cancelled', 'returned'].includes(currentStatus)) {
+      for (const step of validSteps) {
+        const entry = getHistoryEntry(step.key);
+        if (entry) {
+          finalTimeline.push({
+            status: step.label,
+            statusKey: step.key,
+            message: step.msg,
+            timestamp: entry.timestamp,
+            displayDate: formatTimelineDate(entry.timestamp),
+            isCompleted: true,
+            isCurrent: false
+          });
+        }
+      }
+      const specialStatus = currentStatus;
+      const specialEntry = getHistoryEntry(specialStatus);
+      finalTimeline.push({
+        status: specialStatus.charAt(0).toUpperCase() + specialStatus.slice(1),
+        statusKey: specialStatus,
+        message: specialStatus === 'cancelled' ? 'Your order was cancelled.' : 'Your order was returned.',
+        timestamp: specialEntry ? specialEntry.timestamp : new Date(),
+        displayDate: formatTimelineDate(specialEntry ? specialEntry.timestamp : new Date()),
+        isCompleted: true,
+        isCurrent: true
+      });
+
+    } else {
+      const statusKeys = validSteps.map(s => s.key);
+      let currentIndex = statusKeys.indexOf(currentStatus);
+
+      if (currentIndex === -1 && currentStatus === 'pending') {
+        currentIndex = -1;
+      }
+
+      finalTimeline = validSteps.map((step, index) => {
+        const isCompleted = index <= currentIndex;
+        const isCurrent = index === currentIndex;
+
+        let entry = getHistoryEntry(step.key);
+        let validTimestamp = entry ? entry.timestamp : null;
+
+        if (isCompleted && !validTimestamp) {
+          for (let i = index + 1; i < validSteps.length; i++) {
+            const nextKey = validSteps[i].key;
+            const nextEntry = getHistoryEntry(nextKey);
+            if (nextEntry) {
+              validTimestamp = nextEntry.timestamp;
+              break;
+            }
+          }
+        }
+
+        return {
+          status: step.label,
+          statusKey: step.key,
+          message: step.msg,
+          timestamp: validTimestamp,
+          displayDate: formatTimelineDate(validTimestamp),
+          isCompleted: isCompleted,
+          isCurrent: isCurrent
+        };
+      });
+    }
+
+    const responseData = {
+      orderId: order.orderId,
+      currentStatus: currentStatus,
+      paymentMethod: order.paymentInfo?.method,
+      paymentStatus: order.paymentInfo?.status,
+      estimatedDeliveryDate: formatTimelineDate(order.estimatedDeliveryDate),
+      timeline: finalTimeline
+    };
+
+    if (itemId) responseData.itemId = itemId;
+
+    return sendSuccessResponse(res, "Timeline fetched successfully", responseData);
+
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -556,5 +859,6 @@ export default {
   cancelOrder,
   returnOrder,
   getAllOrders,
-  updateOrderItemStatus
+  getSellerOrders,
+  getOrderTimeline
 };
