@@ -40,7 +40,7 @@ export const addToWishlist = async (req, res) => {
       const isSameProduct = item.productId.toString() === productId;
       const isSameVariant = variantId
         ? item.productVariantId && item.productVariantId.toString() === variantId
-        : !item.productVariantId; // If no variantId is passed, check if item also has no variant
+        : !item.productVariantId;
 
       return isSameProduct && isSameVariant;
     });
@@ -94,7 +94,6 @@ export const getWishlist = async (req, res) => {
 
     wishlist.items = wishlist.items.filter((item) => item.productId);
 
-    // Filter the product's variant list to only show the specific variant added to the wishlist
     wishlist.items.forEach((item) => {
       if (item.productVariantId && item.productId && Array.isArray(item.productId.variantId)) {
         item.productId.variantId = item.productId.variantId.filter(
@@ -118,7 +117,7 @@ export const removeFromWishlist = async (req, res) => {
     const { id: userId } = req.user;
     const { productId } = req.params;
 
-    const { variantId } = req.body; // or req.query if you prefer, but body is common for detailed info
+    const { variantId } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return sendBadRequestResponse(res, "Invalid product ID!");
@@ -131,16 +130,8 @@ export const removeFromWishlist = async (req, res) => {
       const isSameProduct = item.productId.toString() === productId;
       const isSameVariant = variantId
         ? item.productVariantId && item.productVariantId.toString() === variantId
-        : !item.productVariantId; // Match exact logic as add (loose match if variantId not provided? maybe stricter?)
+        : !item.productVariantId;
 
-      // If variantId is NOT provided in remove request, should we remove ALL variants of that product?
-      // The user says "product Id and variantId pn kravo... so nya productId aek j hase to aek pr click kre to bey vy jase".
-      // This means we MUST be specific. If variantId is NOT provided, we might default to removing items without variant,
-      // OR we assume the frontend sends it. Given the instruction, I'll enforce checking variantId if provided.
-      // If variantId is undefined, I will treat it as removing the base product (no variant).
-      // Or if the frontend sends null?
-
-      // Let's assume strict matching.
       return isSameProduct && isSameVariant;
     });
 
@@ -148,7 +139,6 @@ export const removeFromWishlist = async (req, res) => {
       return sendNotFoundResponse(res, "Product not found in wishlist!");
     }
 
-    // Use filter to remove carefully or splice
     wishlist.items.splice(existsIndex, 1);
 
     await wishlist.save();
