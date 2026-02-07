@@ -132,9 +132,9 @@ indexRoutes.post("/apply-coupon", UserAuth, applyCouponController);
 indexRoutes.post("/remove-coupon", UserAuth, removeCouponController);
 
 //wishlist
-indexRoutes.post("/addToWishlist/:productId", UserAuth, addToWishlist)
+indexRoutes.post("/addToWishlist", UserAuth, addToWishlist)
 indexRoutes.get("/getWishlist", UserAuth, getWishlist)
-indexRoutes.delete("/removeFromWishlist/:productId", UserAuth, removeFromWishlist)
+indexRoutes.delete("/removeFromWishlist", UserAuth, removeFromWishlist)
 
 
 

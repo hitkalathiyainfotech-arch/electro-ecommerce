@@ -8,9 +8,7 @@ import productVariantModel from "../models/productVarient.model.js";
 export const addToWishlist = async (req, res) => {
   try {
     const { id: userId } = req.user;
-    const { productId } = req.params;
-
-    const { variantId } = req.body;
+    const { productId, variantId } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return sendBadRequestResponse(res, "Invalid product ID!");
@@ -115,9 +113,7 @@ export const getWishlist = async (req, res) => {
 export const removeFromWishlist = async (req, res) => {
   try {
     const { id: userId } = req.user;
-    const { productId } = req.params;
-
-    const { variantId } = req.body;
+    const { productId, variantId } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return sendBadRequestResponse(res, "Invalid product ID!");
