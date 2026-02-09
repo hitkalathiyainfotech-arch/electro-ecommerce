@@ -147,19 +147,19 @@ export const getWishlist = async (req, res) => {
           (variant) =>
             variant._id.toString() === item.productVariantId._id.toString()
         );
+
+        if (item.sizeId) {
+          item.productId.variantId.forEach((variant) => {
+            if (variant.color && Array.isArray(variant.color.sizes)) {
+              variant.color.sizes = variant.color.sizes.filter(
+                (size) => size._id.toString() === item.sizeId.toString()
+              );
+            }
+          });
+        }
       }
 
-      if (
-        item.sizeId &&
-        item.productVariantId &&
-        item.productVariantId.color &&
-        Array.isArray(item.productVariantId.color.sizes)
-      ) {
-        item.productVariantId.color.sizes =
-          item.productVariantId.color.sizes.filter(
-            (size) => size._id.toString() === item.sizeId.toString()
-          );
-      }
+      delete item.productVariantId;
     });
 
     return sendSuccessResponse(res, "Wishlist fetched successfully!", wishlist);
