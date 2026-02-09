@@ -23,6 +23,13 @@ export const addToWishlist = async (req, res) => {
       }
       const variant = await productVariantModel.findById(variantId);
       if (!variant) return sendNotFoundResponse(res, "Variant not found!");
+
+      if (variant.productId.toString() !== productId) {
+        return sendBadRequestResponse(
+          res,
+          "Variant does not belong to this product!"
+        );
+      }
     }
 
     let wishlist = await wishlistModel.findOne({ userId });
