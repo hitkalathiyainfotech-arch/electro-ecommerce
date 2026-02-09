@@ -19,6 +19,10 @@ const wishlistSchema = new mongoose.Schema(
           ref: "productVariant",
           required: false,
         },
+        sizeId: {
+          type: mongoose.Schema.Types.ObjectId,
+          required: false,
+        },
       },
     ],
   },

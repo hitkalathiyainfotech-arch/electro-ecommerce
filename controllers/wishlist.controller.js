@@ -1,14 +1,18 @@
 import mongoose from "mongoose";
 import wishlistModel from "../models/wishlist.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
-import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/response.utils.js";
+import {
+  sendBadRequestResponse,
+  sendNotFoundResponse,
+  sendSuccessResponse,
+} from "../utils/response.utils.js";
 import productModel from "../models/product.model.js";
 import productVariantModel from "../models/productVarient.model.js";
 
 export const addToWishlist = async (req, res) => {
   try {
     const { id: userId } = req.user;
-    const { productId, variantId } = req.body;
+    const { productId, variantId, sizeId } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return sendBadRequestResponse(res, "Invalid product ID!");
@@ -16,6 +20,8 @@ export const addToWishlist = async (req, res) => {
 
     const product = await productModel.findById(productId);
     if (!product) return sendNotFoundResponse(res, "Product not found!");
+
+    let validSizeId = undefined;
 
     if (variantId) {
       if (!mongoose.Types.ObjectId.isValid(variantId)) {
@@ -29,6 +35,34 @@ export const addToWishlist = async (req, res) => {
           res,
           "Variant does not belong to this product!"
         );
+      }
+
+      if (variant.color?.sizes?.length > 0) {
+        if (!sizeId) {
+          return sendBadRequestResponse(
+            res,
+            "Size ID is required for this variant!"
+          );
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(sizeId)) {
+          return sendBadRequestResponse(res, "Invalid size ID!");
+        }
+
+        const sizeExists = variant.color.sizes.find(
+          (size) => size._id.toString() === sizeId
+        );
+
+        if (!sizeExists) {
+          return sendBadRequestResponse(
+            res,
+            "Size does not belong to this variant!"
+          );
+        }
+
+        validSizeId = sizeId;
+      } else {
+        validSizeId = undefined;
       }
     }
 
@@ -44,10 +78,14 @@ export const addToWishlist = async (req, res) => {
     const exists = wishlist.items.some((item) => {
       const isSameProduct = item.productId.toString() === productId;
       const isSameVariant = variantId
-        ? item.productVariantId && item.productVariantId.toString() === variantId
+        ? item.productVariantId &&
+        item.productVariantId.toString() === variantId
         : !item.productVariantId;
+      const isSameSize = validSizeId
+        ? item.sizeId && item.sizeId.toString() === validSizeId
+        : !item.sizeId;
 
-      return isSameProduct && isSameVariant;
+      return isSameProduct && isSameVariant && isSameSize;
     });
 
     if (exists) {
@@ -57,11 +95,11 @@ export const addToWishlist = async (req, res) => {
     wishlist.items.push({
       productId,
       productVariantId: variantId || undefined,
+      sizeId: validSizeId || undefined,
     });
     await wishlist.save();
 
     return sendSuccessResponse(res, "Added to wishlist!", wishlist);
-
   } catch (error) {
     return ThrowError(res, 500, error.message);
   }
@@ -100,18 +138,31 @@ export const getWishlist = async (req, res) => {
     wishlist.items = wishlist.items.filter((item) => item.productId);
 
     wishlist.items.forEach((item) => {
-      if (item.productVariantId && item.productId && Array.isArray(item.productId.variantId)) {
+      if (
+        item.productVariantId &&
+        item.productId &&
+        Array.isArray(item.productId.variantId)
+      ) {
         item.productId.variantId = item.productId.variantId.filter(
-          (variant) => variant._id.toString() === item.productVariantId._id.toString()
+          (variant) =>
+            variant._id.toString() === item.productVariantId._id.toString()
         );
+      }
+
+      if (
+        item.sizeId &&
+        item.productVariantId &&
+        item.productVariantId.color &&
+        Array.isArray(item.productVariantId.color.sizes)
+      ) {
+        item.productVariantId.color.sizes =
+          item.productVariantId.color.sizes.filter(
+            (size) => size._id.toString() === item.sizeId.toString()
+          );
       }
     });
 
-    return sendSuccessResponse(
-      res,
-      "Wishlist fetched successfully!",
-      wishlist
-    );
+    return sendSuccessResponse(res, "Wishlist fetched successfully!", wishlist);
   } catch (error) {
     return ThrowError(res, 500, error.message);
   }
@@ -120,7 +171,7 @@ export const getWishlist = async (req, res) => {
 export const removeFromWishlist = async (req, res) => {
   try {
     const { id: userId } = req.user;
-    const { productId, variantId } = req.body;
+    const { productId, variantId, sizeId } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return sendBadRequestResponse(res, "Invalid product ID!");
@@ -132,10 +183,14 @@ export const removeFromWishlist = async (req, res) => {
     const existsIndex = wishlist.items.findIndex((item) => {
       const isSameProduct = item.productId.toString() === productId;
       const isSameVariant = variantId
-        ? item.productVariantId && item.productVariantId.toString() === variantId
+        ? item.productVariantId &&
+        item.productVariantId.toString() === variantId
         : !item.productVariantId;
+      const isSameSize = sizeId
+        ? item.sizeId && item.sizeId.toString() === sizeId
+        : !item.sizeId;
 
-      return isSameProduct && isSameVariant;
+      return isSameProduct && isSameVariant && isSameSize;
     });
 
     if (existsIndex === -1) {
@@ -147,8 +202,7 @@ export const removeFromWishlist = async (req, res) => {
     await wishlist.save();
 
     return sendSuccessResponse(res, "Product removed from wishlist!", wishlist);
-
   } catch (error) {
     return ThrowError(res, 500, error.message);
   }
-}
+};
