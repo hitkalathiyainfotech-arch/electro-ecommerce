@@ -24,6 +24,10 @@ const cartItemSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: false
     },
+    sizeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false
+    },
 
     price: { type: Number, required: true },
     discountedPrice: { type: Number },

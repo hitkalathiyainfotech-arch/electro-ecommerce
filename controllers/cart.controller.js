@@ -10,7 +10,7 @@ import { getDeliveryInfo } from "../helper/deliveryDate.helper.js";
 export const addToCart = async (req, res) => {
   try {
     const userId = req.user?._id;
-    const { productId, variantId, comboId, quantity, selectedSize, courierService } = req.body;
+    const { productId, variantId, comboId, quantity, sizeId, courierService } = req.body;
 
     if (!userId) return sendBadRequestResponse(res, "User ID required");
     if (quantity === undefined || quantity === null) return sendBadRequestResponse(res, "Quantity required");
@@ -43,23 +43,19 @@ export const addToCart = async (req, res) => {
       const colorData = variant.color;
       if (!colorData || !colorData.colorName) return sendBadRequestResponse(res, "Color data not available");
 
-      if (req.body.selectedColor && req.body.selectedColor.toLowerCase() !== colorData.colorName.toLowerCase()) {
-        return sendBadRequestResponse(res, `Selected color '${req.body.selectedColor}' does not match this variant's color '${colorData.colorName}'`);
-      }
-
       finalColor = colorData.colorName;
 
       if (Array.isArray(colorData.sizes) && colorData.sizes.length > 0) {
-        if (!selectedSize) return sendBadRequestResponse(res, "Size selection is required for this variant");
+        if (!sizeId) return sendBadRequestResponse(res, "Size selection is required for this variant");
 
-        const sizeData = colorData.sizes.find(x => x.sizeValue === selectedSize);
-        if (!sizeData) return sendBadRequestResponse(res, `Size ${selectedSize} not available in this color`);
+        const sizeData = colorData.sizes.find(x => x._id.toString() === sizeId);
+        if (!sizeData) return sendBadRequestResponse(res, `Selected size not available in this color`);
 
         if (!sizeData.stock || sizeData.stock <= 0) {
-          return sendBadRequestResponse(res, `Size ${selectedSize} is out of stock`);
+          return sendBadRequestResponse(res, `Size ${sizeData.sizeValue} is out of stock`);
         }
 
-        finalSize = selectedSize;
+        finalSize = sizeData.sizeValue;
         stock = sizeData.stock;
         price = sizeData.price || 0;
         discountedPrice = sizeData.discountedPrice || null;
@@ -89,7 +85,7 @@ export const addToCart = async (req, res) => {
       item.product.toString() === productId &&
       String(item.variant) === String(variantId || null) &&
       String(item.selectedColor || "") === String(finalColor || "") &&
-      String(item.selectedSize || "") === String(finalSize || "") &&
+      (sizeId ? String(item.sizeId) === String(sizeId) : String(item.selectedSize || "") === String(finalSize || "")) &&
       !item.comboOffer
     );
 
@@ -111,6 +107,7 @@ export const addToCart = async (req, res) => {
         comboOffer: null,
         selectedColor: finalColor || null,
         selectedSize: finalSize || null,
+        sizeId: sizeId || null,
         price: price || 0,
         discountedPrice: finalUnitPrice,
         quantity,
@@ -173,7 +170,10 @@ export const getCart = async (req, res) => {
 
     cart.items = cart.items.map(item => {
       if (item.variant && item.variant.color && Array.isArray(item.variant.color.sizes)) {
-        const selectedSizeData = item.variant.color.sizes.find(s => s.sizeValue === item.selectedSize);
+        const selectedSizeData = item.sizeId
+          ? item.variant.color.sizes.find(s => s._id.toString() === item.sizeId.toString())
+          : item.variant.color.sizes.find(s => s.sizeValue === item.selectedSize);
+
         if (selectedSizeData) {
           item.variant.color.sizes = [selectedSizeData];
         }
@@ -361,6 +361,7 @@ export const applyComboToCart = async (req, res) => {
       let stock = 1;
       let selectedColor = null;
       let selectedSize = null;
+      let selectedSizeId = null;
 
       if (variant) {
         const colorObj = variant.color || {};
@@ -369,6 +370,7 @@ export const applyComboToCart = async (req, res) => {
         if (Array.isArray(colorObj.sizes) && colorObj.sizes.length > 0) {
           const sizeObj = colorObj.sizes[0];
           selectedSize = sizeObj.sizeValue;
+          selectedSizeId = sizeObj._id;
           stock = sizeObj.stock || 0;
           basePrice = sizeObj.price ?? 0;
           discountedUnitPrice = sizeObj.discountedPrice ?? basePrice;
@@ -411,7 +413,7 @@ export const applyComboToCart = async (req, res) => {
         i.product.toString() === prod._id.toString() &&
         (variant ? String(i.variant) === String(variant._id) : !i.variant) &&
         String(i.selectedColor || "") === String(selectedColor || "") &&
-        String(i.selectedSize || "") === String(selectedSize || "") &&
+        (selectedSizeId ? String(i.sizeId) === String(selectedSizeId) : String(i.selectedSize || "") === String(selectedSize || "")) &&
         String(i.comboOffer || null) === String(comboId || null) &&
         String(i.comboItemId || "") === String(cp._id || "")
       );
@@ -428,6 +430,7 @@ export const applyComboToCart = async (req, res) => {
           comboItemId: cp._id,
           selectedColor: selectedColor || null,
           selectedSize: selectedSize || null,
+          sizeId: selectedSizeId || null,
           price: basePrice,
           discountedPrice: discountedUnitPrice,
           quantity: comboQty,

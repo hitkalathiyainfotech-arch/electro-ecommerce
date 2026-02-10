@@ -101,6 +101,7 @@ export const createOrder = async (req, res) => {
         variant: item.variant?._id || null,
         selectedColor: item.selectedColor,
         selectedSize: item.selectedSize,
+        sizeId: item.sizeId,
         price: item.price,
         discountedPrice: item.discountedPrice,
         quantity: item.quantity,

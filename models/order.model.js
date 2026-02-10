@@ -14,6 +14,7 @@ const orderItemSchema = new mongoose.Schema(
     },
     selectedColor: { type: String },
     selectedSize: { type: String },
+    sizeId: { type: String },
 
     price: { type: Number, required: true },
     discountedPrice: { type: Number },
