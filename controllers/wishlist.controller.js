@@ -138,15 +138,24 @@ export const getWishlist = async (req, res) => {
     wishlist.items = wishlist.items.filter((item) => item.productId);
 
     wishlist.items.forEach((item) => {
+      if (item.productId) {
+        item.productId = { ...item.productId };
+      }
+
       if (
         item.productVariantId &&
         item.productId &&
         Array.isArray(item.productId.variantId)
       ) {
-        item.productId.variantId = item.productId.variantId.filter(
-          (variant) =>
-            variant._id.toString() === item.productVariantId._id.toString()
-        );
+        item.productId.variantId = item.productId.variantId
+          .filter(
+            (variant) =>
+              variant._id.toString() === item.productVariantId._id.toString()
+          )
+          .map((variant) => ({
+            ...variant,
+            color: variant.color ? { ...variant.color } : variant.color,
+          }));
 
         if (item.sizeId) {
           item.productId.variantId.forEach((variant) => {
