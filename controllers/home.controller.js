@@ -3,7 +3,7 @@ import brandModel from "../models/brand.model.js";
 import productModel from "../models/product.model.js";
 import productVarientModel from "../models/productVarient.model.js";
 import { sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js";
-import { createProductVariant } from "./productVariant.controller.js";
+
 import reviewModel from "../models/review.model.js";
 
 export const newArrival = async (req, res) => {
@@ -14,7 +14,7 @@ export const newArrival = async (req, res) => {
       .limit(15)
       .populate({
         path: "variantId",
-        options: { limit: 1 }
+        perDocumentLimit: 1
       });
 
     const formatted = products.map(p => ({
@@ -51,7 +51,7 @@ export const bestSeller = async (req, res) => {
 
     return sendSuccessResponse(res, "best selling Products", formatted);
   } catch (error) {
-    console.log("Error while bestSeller", error)
+
     return sendErrorResponse(res, 500, "Error while bestSeller", error)
   }
 }
@@ -80,7 +80,7 @@ export const newProducts = async (req, res) => {
 
     return sendSuccessResponse(res, "New Products fetched successfully", formatted);
   } catch (error) {
-    console.log("Error while fetching new products", error);
+
     return sendErrorResponse(res, 500, "Error while fetching new products", error);
   }
 }
@@ -405,7 +405,7 @@ export const getFiltteredProducts = async (req, res) => {
     return sendSuccessResponse(res, "Products fetched successfully", filteredProducts);
 
   } catch (error) {
-    console.log("error while filtering products", error);
+
     return sendErrorResponse(res, 500, "Error while filtering products", error);
   }
 };
