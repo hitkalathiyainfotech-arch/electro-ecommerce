@@ -778,8 +778,8 @@ export const getAllUserAddress = async (req, res) => {
     ]);
 
 
-    if (!address || address.length > 0) {
-      return sendSuccessResponse(res, "Address Not Found", address)
+    if (!address || address.length === 0) {
+      return sendSuccessResponse(res, "Address Not Found")
     }
 
     return sendSuccessResponse(res, `user Address Featched SuccessFully`, address)
