@@ -747,10 +747,12 @@ export const updateUserAddress = async (req, res) => {
       });
     }
 
+    const updatedAddress = updatedUser.address.find(addr => addr._id.toString() === addressId);
+
     res.status(200).json({
       success: true,
       message: "Address updated successfully",
-      data: updatedUser
+      data: updatedAddress
     });
   } catch (error) {
     res.status(500).json({
