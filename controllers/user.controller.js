@@ -718,6 +718,10 @@ export const addNewAddress = async (req, res) => {
 export const updateUserAddress = async (req, res) => {
   try {
     const addressId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(addressId)) {
+      return sendBadRequestResponse(res, "Invalid Address ID");
+    }
     const updateData = req.body;
 
     let mapURL = null;
@@ -797,6 +801,10 @@ export const getUserAddressById = async (req, res) => {
     const userId = req.user._id;
     const addressId = req.params.id;
 
+    if (!mongoose.Types.ObjectId.isValid(addressId)) {
+      return sendBadRequestResponse(res, "Invalid Address ID");
+    }
+
     const user = await userModel.findOne(
       { _id: userId, "address._id": addressId },
       { "address.$": 1 }
@@ -821,20 +829,24 @@ export const deleteUserAddress = async (req, res) => {
     const userId = req.user._id;
     const addressId = req.params.id;
 
-    const user = await userModel.findByIdAndUpdate(
-      { _id: userId },
+    if (!mongoose.Types.ObjectId.isValid(addressId)) {
+      return sendBadRequestResponse(res, "Invalid Address ID");
+    }
+
+    const user = await userModel.findOneAndUpdate(
+      { _id: userId, "address._id": addressId },
       { $pull: { address: { _id: addressId } } },
       { new: true }
     );
 
-    if (!user || !user.address.length) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: "Address not found"
       });
     }
 
-    return sendSuccessResponse(res, "User address deleted Successful By id", user.address[0])
+    return sendSuccessResponse(res, "User address deleted Successful By id", user.address)
   } catch (error) {
     console.log("Error while delete User Address: " + error.message);
     return sendErrorResponse(res, 500, "Error while delete address", error)
