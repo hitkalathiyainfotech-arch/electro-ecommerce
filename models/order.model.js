@@ -75,12 +75,12 @@ const orderSchema = new mongoose.Schema(
     trackingNumber: { type: String },
 
     priceSummary: {
-      subtotal: { type: Number, default: 0 }, // original prices
-      itemDiscount: { type: Number, default: 0 }, // product discounts
+      subtotal: { type: Number, default: 0 },
+      itemDiscount: { type: Number, default: 0 },
       comboDiscount: { type: Number, default: 0 },
       couponDiscount: { type: Number, default: 0 },
       subtotalAfterDiscounts: { type: Number, default: 0 },
-      gst: { type: Number, default: 0 }, // 18% GST
+      gst: { type: Number, default: 0 },
       deliveryCharge: { type: Number, default: 0 },
       finalTotal: { type: Number, default: 0 }
     },
@@ -111,8 +111,8 @@ const orderSchema = new mongoose.Schema(
     paymentInfo: {
       method: {
         type: String,
-        enum: ["cod", "card", "emi", "upi", "netbanking"],
-        default: "cod"
+        enum: ["card"],
+        default: "card"
       },
       status: {
         type: String,
@@ -120,38 +120,11 @@ const orderSchema = new mongoose.Schema(
         default: "pending"
       },
       transactionId: String,
-      razorpayOrderId: String,
-      razorpayPaymentId: String,
-      razorpaySignature: String,
+      stripePaymentIntentId: String,
+      stripeClientSecret: String,
       paymentDate: Date,
       refundAmount: { type: Number, default: 0 },
       refundDate: Date
-    },
-
-    emiInfo: {
-      enabled: { type: Boolean, default: false },
-      tenure: { type: Number }, // months (3, 6, 9, 12 etc)
-      monthlyAmount: { type: Number },
-      totalEMIAmount: { type: Number },
-      interestRate: { type: Number }, // percentage
-      emiStatus: {
-        type: String,
-        enum: ["pending", "active", "completed", "failed"],
-        default: "pending"
-      },
-      paidInstallments: { type: Number, default: 0 },
-      nextPaymentDate: Date,
-      installments: [
-        {
-          installmentNo: Number,
-          amount: Number,
-          dueDate: Date,
-          paidDate: Date,
-          status: { type: String, enum: ["pending", "paid", "failed"], default: "pending" },
-          razorpayPaymentId: String,
-          razorpayOrderId: String
-        }
-      ]
     },
 
     orderStatus: {

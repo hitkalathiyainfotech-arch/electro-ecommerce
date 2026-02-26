@@ -8,16 +8,18 @@ import {
   sendSuccessResponse
 } from "../utils/response.utils.js";
 import {
-  createRazorpayOrder,
-  createRazorpayEMIOrder,
-  verifyRazorpaySignature,
-  getRazorpayPaymentDetails,
-  refundRazorpayPayment,
-  EMI_TENURES
-} from "../utils/razorpay.config.js";
-import crypto from 'crypto';
+  createStripePaymentIntent,
+  getStripePaymentIntent,
+  createStripeRefund,
+  constructStripeWebhookEvent,
+  stripe
+} from "../utils/stripe.config.js";
 import Payment from "../models/payment.model.js";
 
+/**
+ * Initiate Card Payment (Stripe)
+ * POST /payment/:orderId/initiate
+ */
 export const initiatePayment = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -33,177 +35,94 @@ export const initiatePayment = async (req, res) => {
       return sendBadRequestResponse(res, "Payment already completed for this order");
     }
 
-    const onlineMethods = ["card", "emi", "upi", "netbanking"];
-    if (!onlineMethods.includes(order.paymentInfo.method)) {
-      return sendBadRequestResponse(res, "This order is not configured for Online payment");
+    if (order.paymentInfo.method !== "card") {
+      return sendBadRequestResponse(res, "This order is not configured for card payment");
     }
 
-    const razorpayOrder = await createRazorpayOrder(
+    const paymentIntent = await createStripePaymentIntent(
       order.priceSummary.finalTotal,
       orderId
     );
 
-    order.paymentInfo.razorpayOrderId = razorpayOrder.id;
+    order.paymentInfo.stripePaymentIntentId = paymentIntent.id;
+    order.paymentInfo.stripeClientSecret = paymentIntent.client_secret;
     await order.save();
 
-    return sendSuccessResponse(res, "Payment order created", {
+    return sendSuccessResponse(res, "Payment intent created", {
       orderId: orderId,
-      razorpayOrderId: razorpayOrder.id,
+      stripePaymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
       amount: order.priceSummary.finalTotal,
-      currency: razorpayOrder.currency,
-      key: process.env.RAZORPAY_KEY_ID
+      currency: paymentIntent.currency,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
     });
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
 };
 
-export const initiateEMIPayment = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const { tenure } = req.body;
-    const userId = req.user?._id;
-
-    if (!userId) return sendBadRequestResponse(res, "User ID required");
-    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
-    if (!tenure) return sendBadRequestResponse(res, "Tenure required");
-
-    if (!EMI_TENURES.includes(tenure)) {
-      return sendBadRequestResponse(res, `Invalid tenure. Allowed: ${EMI_TENURES.join(", ")}`);
-    }
-
-    const order = await Order.findOne({ orderId, userId });
-    if (!order) return sendNotFoundResponse(res, "Order not found");
-
-    if (order.paymentInfo.status === "completed") {
-      return sendBadRequestResponse(res, "Payment already completed for this order");
-    }
-
-    if (order.paymentInfo.method === "cod") {
-      return sendBadRequestResponse(res, "Order is set to Cash on Delivery");
-    }
-
-    const { order: razorpayOrder, emiDetails } = await createRazorpayEMIOrder(
-      order.priceSummary.finalTotal,
-      orderId,
-      tenure
-    );
-
-    order.paymentInfo.razorpayOrderId = razorpayOrder.id;
-    order.paymentInfo.method = "emi";
-
-    order.emiInfo.enabled = true;
-    order.emiInfo.tenure = tenure;
-    order.emiInfo.monthlyAmount = emiDetails.monthlyAmount;
-    order.emiInfo.totalEMIAmount = emiDetails.totalAmount;
-    order.emiInfo.interestRate = emiDetails.interestRate;
-    order.emiInfo.emiStatus = "pending";
-
-    await order.save();
-
-    return sendSuccessResponse(res, "EMI payment order created", {
-      orderId: orderId,
-      razorpayOrderId: razorpayOrder.id,
-      totalAmount: order.priceSummary.finalTotal,
-      emiDetails: {
-        tenure,
-        monthlyAmount: emiDetails.monthlyAmount,
-        totalAmount: emiDetails.totalAmount,
-        interestRate: emiDetails.interestRate
-      },
-      currency: razorpayOrder.currency,
-      key: process.env.RAZORPAY_KEY_ID
-    });
-  } catch (error) {
-    return sendErrorResponse(res, 500, error.message);
-  }
-};
-
+/**
+ * Verify Card Payment (Stripe)
+ * POST /payment/:orderId/verify
+ */
 export const verifyPayment = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { paymentIntentId, paymentMethodId } = req.body;
     const userId = req.user?._id;
 
     if (!userId) return sendBadRequestResponse(res, "User ID required");
     if (!orderId) return sendBadRequestResponse(res, "Order ID required");
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return sendBadRequestResponse(res, "Payment details missing");
+    if (!paymentIntentId) {
+      return sendBadRequestResponse(res, "Payment Intent ID is required");
     }
 
     const order = await Order.findOne({ orderId, userId });
     if (!order) return sendNotFoundResponse(res, "Order not found");
 
-    let actualMethod = "card";
-    let paymentDetails = null;
+    let paymentIntent = null;
+    const isTest = paymentIntentId === "test_payment_id_123";
 
-    if (razorpay_payment_id === "test_payment_id_123") {
-      actualMethod = order.paymentInfo.method;
-
-      paymentDetails = {
+    if (isTest) {
+      paymentIntent = {
+        id: paymentIntentId,
+        status: "succeeded",
         amount: order.priceSummary.finalTotal * 100,
-        status: "captured",
-        method: actualMethod,
-        currency: "INR"
+        currency: "inr",
+        payment_method_types: ["card"]
       };
     } else {
-      const isSignatureValid = verifyRazorpaySignature(
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature
-      );
+      paymentIntent = await getStripePaymentIntent(paymentIntentId);
 
-      if (!isSignatureValid) {
-        return sendBadRequestResponse(res, "Invalid payment signature");
-      }
-
-      paymentDetails = await getRazorpayPaymentDetails(razorpay_payment_id);
-      actualMethod = paymentDetails.method;
-
-    }
-
-    if (actualMethod) {
-      order.paymentInfo.method = actualMethod;
-    }
-
-    if (actualMethod === "emi") {
-      order.emiInfo.enabled = true;
-      order.emiInfo.emiStatus = "active";
-
-      if (!order.emiInfo.installments || order.emiInfo.installments.length === 0) {
-        const tenure = order.emiInfo.tenure || 3;
-        const monthlyAmount = order.emiInfo.monthlyAmount || Math.ceil(order.priceSummary.finalTotal / tenure);
-
-        const schedule = [];
-        const today = new Date();
-
-        for (let i = 1; i <= tenure; i++) {
-          const dueDate = new Date(today);
-          dueDate.setMonth(today.getMonth() + i);
-
-          schedule.push({
-            installmentNo: i,
-            amount: monthlyAmount,
-            dueDate: dueDate,
-            status: "pending"
+      // Add a way to confirm directly from Postman for testing
+      if (paymentIntent.status === "requires_payment_method") {
+        const pmId = paymentMethodId || "pm_card_visa"; // Default to test card if they forgot
+        try {
+          paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
+            payment_method: pmId,
           });
+        } catch (confirmError) {
+          return sendBadRequestResponse(res, `Stripe Confirm Error: ${confirmError.message}`);
         }
-        order.emiInfo.installments = schedule;
-        order.emiInfo.nextPaymentDate = schedule[0].dueDate;
       }
-    } else {
-      if (order.emiInfo?.enabled) {
-        order.emiInfo.enabled = false;
-        order.emiInfo.emiStatus = "failed";
+
+      if (paymentIntent.status !== "succeeded") {
+        return sendBadRequestResponse(
+          res,
+          `Payment not completed. Status: ${paymentIntent.status}. Note: For Stripe, the frontend must confirm the payment using "clientSecret" BEFORE calling this verify API. Or pass "paymentMethodId": "pm_card_visa" in the body for Postman testing.`
+        );
       }
     }
 
+    // Update order payment info
     order.paymentInfo.status = "completed";
-    order.paymentInfo.razorpayPaymentId = razorpay_payment_id;
-    order.paymentInfo.razorpaySignature = razorpay_signature;
+    order.paymentInfo.stripePaymentIntentId = paymentIntentId;
+    order.paymentInfo.transactionId = paymentIntentId;
     order.paymentInfo.paymentDate = new Date();
+    order.paymentInfo.method = "card";
     order.timeline.paymentCompleted = new Date();
 
+    // Confirm order if pending
     if (order.orderStatus.current === "pending") {
       order.orderStatus.current = "confirmed";
 
@@ -216,7 +135,7 @@ export const verifyPayment = async (req, res) => {
       order.orderStatus.history.push({
         status: "confirmed",
         timestamp: new Date(),
-        notes: `Order confirmed. Payment via ${actualMethod.toUpperCase()}`
+        notes: "Order confirmed. Payment via CARD"
       });
       order.timeline.orderConfirmed = new Date();
     }
@@ -224,6 +143,7 @@ export const verifyPayment = async (req, res) => {
     order.lastUpdated = new Date();
     await order.save();
 
+    // Update product sold count
     try {
       for (const item of order.items) {
         await productModel.findByIdAndUpdate(
@@ -236,31 +156,27 @@ export const verifyPayment = async (req, res) => {
       console.error("Error updating product sales count:", err);
     }
 
+    // Save payment record
     try {
-      if (paymentDetails) {
-        await Payment.create({
-          userId,
-          orderId: order.orderId,
-          orderObjectId: order._id,
-          razorpayOrderId: razorpay_order_id,
-          razorpayPaymentId: razorpay_payment_id,
-          razorpaySignature: razorpay_signature,
-          amount: paymentDetails.amount ? paymentDetails.amount / 100 : order.priceSummary.finalTotal,
-          currency: paymentDetails.currency || "INR",
-          status: paymentDetails.status || "captured",
-          method: paymentDetails.method || actualMethod,
-          email: paymentDetails.email,
-          contact: paymentDetails.contact,
-          card: paymentDetails.card,
-          bank: paymentDetails.bank,
-          wallet: paymentDetails.wallet,
-          vpa: paymentDetails.vpa,
-          fee: paymentDetails.fee,
-          tax: paymentDetails.tax,
-          error_code: paymentDetails.error_code,
-          error_description: paymentDetails.error_description
-        });
-      }
+      const paymentIdToSave = isTest ? `test_pi_${Date.now()}` : paymentIntentId;
+
+      await Payment.create({
+        userId,
+        orderId: order.orderId,
+        orderObjectId: order._id,
+        stripePaymentIntentId: paymentIdToSave,
+        amount: paymentIntent.amount ? paymentIntent.amount / 100 : order.priceSummary.finalTotal,
+        currency: paymentIntent.currency || "inr",
+        status: paymentIntent.status || "succeeded",
+        method: "card",
+        card: paymentIntent.charges?.data?.[0]?.payment_method_details?.card ? {
+          brand: paymentIntent.charges.data[0].payment_method_details.card.brand,
+          last4: paymentIntent.charges.data[0].payment_method_details.card.last4,
+          expMonth: paymentIntent.charges.data[0].payment_method_details.card.exp_month,
+          expYear: paymentIntent.charges.data[0].payment_method_details.card.exp_year,
+          funding: paymentIntent.charges.data[0].payment_method_details.card.funding
+        } : undefined
+      });
     } catch (saveError) {
       console.error("Failed to save Payment record:", saveError);
     }
@@ -269,8 +185,8 @@ export const verifyPayment = async (req, res) => {
       orderId: order.orderId,
       paymentStatus: order.paymentInfo.status,
       orderStatus: order.orderStatus.current,
-      transactionId: razorpay_payment_id,
-      method: actualMethod
+      transactionId: paymentIntentId,
+      method: "card"
     });
 
   } catch (error) {
@@ -278,6 +194,10 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
+/**
+ * Get Payment Status
+ * GET /payment/:orderId/status
+ */
 export const getPaymentStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -287,7 +207,7 @@ export const getPaymentStatus = async (req, res) => {
     if (!orderId) return sendBadRequestResponse(res, "Order ID required");
 
     const order = await Order.findOne({ orderId, userId }).select(
-      "orderId paymentInfo emiInfo"
+      "orderId paymentInfo"
     );
 
     if (!order) return sendNotFoundResponse(res, "Order not found");
@@ -296,19 +216,9 @@ export const getPaymentStatus = async (req, res) => {
       orderId: order.orderId,
       paymentStatus: order.paymentInfo.status,
       method: order.paymentInfo.method,
-      transactionId: order.paymentInfo.razorpayPaymentId,
+      transactionId: order.paymentInfo.stripePaymentIntentId,
       paymentDate: order.paymentInfo.paymentDate
     };
-
-    if (order.emiInfo && order.emiInfo.enabled) {
-      response.emiStatus = {
-        enabled: true,
-        tenure: order.emiInfo.tenure,
-        monthlyAmount: order.emiInfo.monthlyAmount,
-        status: order.emiInfo.emiStatus,
-        totalEMIAmount: order.emiInfo.totalEMIAmount
-      };
-    }
 
     return sendSuccessResponse(res, "Payment status", response);
   } catch (error) {
@@ -316,6 +226,10 @@ export const getPaymentStatus = async (req, res) => {
   }
 };
 
+/**
+ * Process Refund (Stripe)
+ * POST /payment/:orderId/refund
+ */
 export const processRefund = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -328,32 +242,32 @@ export const processRefund = async (req, res) => {
     const order = await Order.findOne({ orderId, userId });
     if (!order) return sendNotFoundResponse(res, "Order not found");
 
-    const onlineMethods = ["card", "emi", "upi", "netbanking"];
-    if (!onlineMethods.includes(order.paymentInfo.method)) {
-      return sendBadRequestResponse(res, "No Razorpay payment to refund");
+    if (order.paymentInfo.method !== "card") {
+      return sendBadRequestResponse(res, "No card payment to refund");
     }
 
     if (order.paymentInfo.status !== "completed") {
       return sendBadRequestResponse(res, "Cannot refund incomplete payment");
     }
 
-    const refundAmount = amount ? Number(amount) : order.paymentInfo.amountPaid || order.priceSummary.finalTotal;
+    const refundAmount = amount ? Number(amount) : order.priceSummary.finalTotal;
 
     if (refundAmount <= 0) {
       return sendBadRequestResponse(res, "Refund amount must be greater than zero");
     }
 
     let refund;
+    const isTest = order.paymentInfo.stripePaymentIntentId?.startsWith("test_");
 
-    if (order.paymentInfo.razorpayPaymentId === "test_payment_id_123") {
+    if (isTest) {
       refund = {
         id: "rf_test_" + Date.now(),
-        status: "processed",
+        status: "succeeded",
         amount: refundAmount * 100
       };
     } else {
-      refund = await refundRazorpayPayment(
-        order.paymentInfo.razorpayPaymentId,
+      refund = await createStripeRefund(
+        order.paymentInfo.stripePaymentIntentId,
         refundAmount
       );
     }
@@ -393,113 +307,79 @@ export const processRefund = async (req, res) => {
   }
 };
 
-export const handleRazorpayWebhook = async (req, res) => {
+/**
+ * Handle Stripe Webhook
+ * POST /payment/webhook
+ */
+export const handleStripeWebhook = async (req, res) => {
   try {
-    if (!req.body) {
-      return sendBadRequestResponse(res, "Invalid request: Body is missing");
-    }
+    const signature = req.headers["stripe-signature"];
 
-    const { event, payload } = req.body;
+    let event;
 
-    if (!event || !payload) {
-      if (Object.keys(req.body).length > 0) {
-        console.warn("Webhook missing event/payload:", req.body);
+    if (process.env.STRIPE_WEBHOOK_SECRET && signature) {
+      try {
+        event = constructStripeWebhookEvent(req.rawBody || req.body, signature);
+      } catch (err) {
+        console.warn("Webhook signature verification failed:", err.message);
+        return sendBadRequestResponse(res, "Invalid webhook signature");
       }
-      return sendBadRequestResponse(res, "Invalid Webhook Payload structure");
+    } else {
+      event = req.body;
     }
 
-    const signature = req.headers["x-razorpay-signature"];
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-
-    if (secret) {
-      const crypto = await import('crypto');
-      const expectedSignature = crypto.default
-        .createHmac("sha256", secret)
-        .update(JSON.stringify(req.body))
-        .digest("hex");
-
-      if (signature !== expectedSignature) {
-        console.warn("Webhook Signature Mismatch - Validate Raw Body configuration");
-        // return sendBadRequestResponse(res, "Invalid webhook signature"); // Uncomment for strict security
-      }
+    if (!event || !event.type) {
+      return sendBadRequestResponse(res, "Invalid webhook payload");
     }
 
-    switch (event) {
-      case "payment.captured":
-        const orderId = payload.payment?.entity?.notes?.orderId || payload.order?.entity?.receipt;
+    switch (event.type) {
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object;
+        const orderId = paymentIntent.metadata?.orderId;
 
         if (orderId) {
           const order = await Order.findOne({ orderId });
 
           if (order) {
-
+            // Save payment record if not exists
             try {
-              const paymentEntity = payload.payment.entity;
-              const existingPayment = await Payment.findOne({ razorpayPaymentId: paymentEntity.id });
+              const existingPayment = await Payment.findOne({
+                stripePaymentIntentId: paymentIntent.id
+              });
 
               if (!existingPayment) {
                 await Payment.create({
                   userId: order.userId,
                   orderId: order.orderId,
                   orderObjectId: order._id,
-                  razorpayOrderId: paymentEntity.order_id,
-                  razorpayPaymentId: paymentEntity.id,
-                  amount: paymentEntity.amount ? paymentEntity.amount / 100 : 0,
-                  currency: paymentEntity.currency,
-                  status: paymentEntity.status,
-                  method: paymentEntity.method,
-                  email: paymentEntity.email,
-                  contact: paymentEntity.contact,
-                  card: paymentEntity.card,
-                  bank: paymentEntity.bank,
-                  wallet: paymentEntity.wallet,
-                  vpa: paymentEntity.vpa,
-                  fee: paymentEntity.fee,
-                  tax: paymentEntity.tax,
-                  error_code: paymentEntity.error_code,
-                  error_description: paymentEntity.error_description
+                  stripePaymentIntentId: paymentIntent.id,
+                  amount: paymentIntent.amount ? paymentIntent.amount / 100 : 0,
+                  currency: paymentIntent.currency,
+                  status: "succeeded",
+                  method: "card",
+                  card: paymentIntent.charges?.data?.[0]?.payment_method_details?.card ? {
+                    brand: paymentIntent.charges.data[0].payment_method_details.card.brand,
+                    last4: paymentIntent.charges.data[0].payment_method_details.card.last4,
+                    expMonth: paymentIntent.charges.data[0].payment_method_details.card.exp_month,
+                    expYear: paymentIntent.charges.data[0].payment_method_details.card.exp_year,
+                    funding: paymentIntent.charges.data[0].payment_method_details.card.funding
+                  } : undefined
                 });
               }
             } catch (payErr) {
               console.error("Webhook Payment Save Error", payErr);
             }
 
+            // Update order status
             if (order.paymentInfo.status !== "completed") {
               order.paymentInfo.status = "completed";
-              order.paymentInfo.razorpayPaymentId = payload.payment.entity.id;
-
-              if (payload.payment.entity.method) {
-                order.paymentInfo.method = payload.payment.entity.method;
-              }
-
-              order.emiInfo.enabled = true;
-              order.emiInfo.emiStatus = 'active';
-
-              if (!order.emiInfo.installments || order.emiInfo.installments.length === 0) {
-                const tenure = order.emiInfo.tenure || 3;
-                const monthlyAmount = order.emiInfo.monthlyAmount || Math.ceil(order.priceSummary.finalTotal / tenure);
-
-                const schedule = [];
-                const today = new Date();
-
-                for (let i = 1; i <= tenure; i++) {
-                  const dueDate = new Date(today);
-                  dueDate.setMonth(today.getMonth() + i);
-
-                  schedule.push({
-                    installmentNo: i,
-                    amount: monthlyAmount,
-                    dueDate: dueDate,
-                    status: "pending"
-                  });
-                }
-                order.emiInfo.installments = schedule;
-                order.emiInfo.nextPaymentDate = schedule[0].dueDate;
-              }
+              order.paymentInfo.stripePaymentIntentId = paymentIntent.id;
+              order.paymentInfo.method = "card";
+              order.paymentInfo.paymentDate = new Date();
             }
 
-            if (order.orderStatus.current === 'pending') {
-              order.orderStatus.current = 'confirmed';
+            if (order.orderStatus.current === "pending") {
+              order.orderStatus.current = "confirmed";
 
               order.items.forEach(item => {
                 if (item.itemStatus === "pending") {
@@ -513,12 +393,13 @@ export const handleRazorpayWebhook = async (req, res) => {
               order.orderStatus.history.push({
                 status: "confirmed",
                 timestamp: new Date(),
-                notes: `Payment Verified via Webhook (${payload.payment.entity.method})`
+                notes: "Payment verified via Stripe webhook (CARD)"
               });
             }
 
             await order.save();
 
+            // Update product sold count
             try {
               for (const item of order.items) {
                 await productModel.findByIdAndUpdate(
@@ -535,9 +416,22 @@ export const handleRazorpayWebhook = async (req, res) => {
           }
         }
         break;
+      }
 
-      case "payment.failed":
+      case "payment_intent.payment_failed": {
+        const paymentIntent = event.data.object;
+        const orderId = paymentIntent.metadata?.orderId;
+
+        if (orderId) {
+          const order = await Order.findOne({ orderId });
+          if (order && order.paymentInfo.status === "pending") {
+            order.paymentInfo.status = "failed";
+            order.lastUpdated = new Date();
+            await order.save();
+          }
+        }
         break;
+      }
     }
 
     return sendSuccessResponse(res, "Webhook processed");
@@ -547,171 +441,10 @@ export const handleRazorpayWebhook = async (req, res) => {
   }
 };
 
-export const payEMIInstallment = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const userId = req.user?._id;
-
-    if (!userId) return sendBadRequestResponse(res, "User ID required");
-    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
-
-    const order = await Order.findOne({ orderId, userId });
-    if (!order) return sendNotFoundResponse(res, "Order not found");
-
-    if (!order.emiInfo || !order.emiInfo.enabled) {
-      return sendBadRequestResponse(res, "EMI is not enabled for this order");
-    }
-
-    if (order.emiInfo.emiStatus === "completed") {
-      return sendBadRequestResponse(res, "All installments already paid");
-    }
-
-    const nextInstallment = order.emiInfo.installments.find(inst => inst.status === "pending");
-
-    if (!nextInstallment) {
-      return sendBadRequestResponse(res, "No pending installments found");
-    }
-
-    const razorpayOrder = await createRazorpayOrder(
-      nextInstallment.amount,
-      `${orderId}_INST_${nextInstallment.installmentNo}`
-    );
-
-    nextInstallment.razorpayOrderId = razorpayOrder.id;
-    await order.save();
-
-    return sendSuccessResponse(res, "Installment Payment Initiated", {
-      orderId: orderId,
-      installmentNo: nextInstallment.installmentNo,
-      razorpayOrderId: razorpayOrder.id,
-      amount: nextInstallment.amount,
-      currency: razorpayOrder.currency,
-      key: process.env.RAZORPAY_KEY_ID
-    });
-
-  } catch (error) {
-    return sendErrorResponse(res, 500, error.message);
-  }
-};
-
-export const verifyInstallmentPayment = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, installmentNo } = req.body;
-    const userId = req.user?._id;
-
-    if (!userId) return sendBadRequestResponse(res, "User ID required");
-    if (!orderId) return sendBadRequestResponse(res, "Order ID required");
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !installmentNo) {
-      return sendBadRequestResponse(res, "Payment details or Installment No missing");
-    }
-
-    const order = await Order.findOne({ orderId, userId });
-    if (!order) return sendNotFoundResponse(res, "Order not found");
-
-    const installmentIndex = order.emiInfo.installments.findIndex(i => i.installmentNo === Number(installmentNo));
-
-    if (installmentIndex === -1) {
-      return sendBadRequestResponse(res, "Installment not found");
-    }
-
-    if (order.emiInfo.installments[installmentIndex].status === "paid") {
-      return sendBadRequestResponse(res, "Installment already paid");
-    }
-
-    const previousPending = order.emiInfo.installments.find(
-      i => i.status === "pending" && i.installmentNo < Number(installmentNo)
-    );
-
-    if (previousPending) {
-      return sendBadRequestResponse(res, `Please pay installment #${previousPending.installmentNo} first.`);
-    }
-
-    if (order.emiInfo.installments[installmentIndex].razorpayOrderId !== razorpay_order_id) {
-      return sendBadRequestResponse(res, "Invalid Razorpay Order ID");
-    }
-
-    const isSignatureValid = verifyRazorpaySignature(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature
-    );
-
-    const isTest = razorpay_payment_id === "test_payment_id_123";
-
-    if (!isSignatureValid && !isTest) {
-      return sendBadRequestResponse(res, "Invalid payment signature");
-    }
-
-    order.emiInfo.installments[installmentIndex].status = "paid";
-    order.emiInfo.installments[installmentIndex].paidDate = new Date();
-    order.emiInfo.installments[installmentIndex].razorpayPaymentId = razorpay_payment_id;
-
-    order.emiInfo.paidInstallments += 1;
-
-    const pendingCount = order.emiInfo.installments.filter(i => i.status === "pending").length;
-    if (pendingCount === 0) {
-      order.emiInfo.emiStatus = "completed";
-    } else {
-      const nextInst = order.emiInfo.installments.find(i => i.status === "pending");
-      if (nextInst) {
-        order.emiInfo.nextPaymentDate = nextInst.dueDate;
-      }
-    }
-
-    await order.save();
-
-    try {
-      let paymentDetails = null;
-      if (isTest) {
-        paymentDetails = {
-          amount: order.emiInfo.installments[installmentIndex].amount * 100,
-          method: "card",
-          status: "captured"
-        };
-      } else {
-        paymentDetails = await getRazorpayPaymentDetails(razorpay_payment_id);
-      }
-
-      const paymentIdToSave = isTest ? `test_pay_${Date.now()}_inst${installmentNo}` : razorpay_payment_id;
-
-      await Payment.create({
-        userId,
-        orderId: order.orderId,
-        orderObjectId: order._id,
-        razorpayOrderId: razorpay_order_id,
-        razorpayPaymentId: paymentIdToSave, // Use unique ID for DB
-        razorpaySignature: razorpay_signature,
-        amount: paymentDetails.amount ? paymentDetails.amount / 100 : 0,
-        currency: "INR",
-        status: paymentDetails.status || "captured",
-        method: paymentDetails.method || "unknown",
-        notes: `Installment ${installmentNo} Payment (Original Ref: ${razorpay_payment_id})`
-      });
-
-    } catch (payErr) {
-      console.error("Failed to save Installment Payment record", payErr);
-    }
-
-    return sendSuccessResponse(res, "Installment Paid Successfully", {
-      orderId: orderId,
-      installmentNo: installmentNo,
-      remainingInstallments: pendingCount,
-      status: "paid"
-    });
-
-  } catch (error) {
-    return sendErrorResponse(res, 500, error.message);
-  }
-};
-
 export default {
   initiatePayment,
-  initiateEMIPayment,
   verifyPayment,
   getPaymentStatus,
   processRefund,
-  handleRazorpayWebhook,
-  payEMIInstallment,
-  verifyInstallmentPayment
+  handleStripeWebhook
 };

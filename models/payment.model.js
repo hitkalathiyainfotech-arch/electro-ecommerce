@@ -8,24 +8,20 @@ const paymentSchema = new mongoose.Schema(
             required: true
         },
         orderId: {
-            type: String, // Storing as String to match order.orderId (e.g. ORD_123) or ObjectId if preferred. In Order model it is String.
+            type: String,
             required: true,
             index: true
         },
-        orderObjectId: { // Linking to actual Order document ID
+        orderObjectId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "order"
         },
-        razorpayOrderId: {
-            type: String,
-            required: true
-        },
-        razorpayPaymentId: {
+        stripePaymentIntentId: {
             type: String,
             required: true,
             unique: true
         },
-        razorpaySignature: {
+        stripeClientSecret: {
             type: String
         },
         amount: {
@@ -42,7 +38,7 @@ const paymentSchema = new mongoose.Schema(
         },
         method: {
             type: String,
-            required: true
+            default: "card"
         },
         email: {
             type: String
@@ -50,28 +46,12 @@ const paymentSchema = new mongoose.Schema(
         contact: {
             type: String
         },
-        bank: {
-            type: String
-        },
-        wallet: {
-            type: String
-        },
-        vpa: {
-            type: String
-        },
         card: {
-            id: String,
-            entity: String,
-            name: String,
+            brand: String,
             last4: String,
-            network: String,
-            type: String,
-            issuer: String,
-            international: Boolean,
-            emi: Boolean
-        },
-        acquirer_data: {
-            bank_transaction_id: String
+            expMonth: Number,
+            expYear: Number,
+            funding: String
         },
         fee: Number,
         tax: Number,

@@ -42,35 +42,8 @@ export const createOrder = async (req, res) => {
       return sendBadRequestResponse(res, "Please select a shipping address");
     }
 
-    const validMethods = ["cod", "card", "emi", "upi", "netbanking"];
-    if (!validMethods.includes(paymentMethod)) {
-      return sendBadRequestResponse(res, "Invalid payment method. Allowed: COD, CARD, EMI, UPI, NETBANKING");
-    }
-
-    if (paymentMethod === "emi") {
-      let eligibleEmiTotal = 0;
-
-      cart.items.forEach(item => {
-        let isEmiAllowed = true;
-
-        if (item.variant && item.variant.emi !== undefined) {
-          isEmiAllowed = item.variant.emi;
-        } else if (item.product && item.product.emi !== undefined) {
-          isEmiAllowed = item.product.emi;
-        }
-
-        if (isEmiAllowed !== false) {
-          const itemPrice = item.discountedPrice || item.price;
-          eligibleEmiTotal += itemPrice * item.quantity;
-        }
-      });
-
-      if (eligibleEmiTotal < 3000) {
-        if (eligibleEmiTotal === 0) {
-          return sendBadRequestResponse(res, "None of the items in your cart are available for EMI.");
-        }
-        return sendBadRequestResponse(res, `EMI is only available for orders with eligible items totaling ₹3000 or more. Your eligible amount is ₹${eligibleEmiTotal}`);
-      }
+    if (paymentMethod !== "card") {
+      return sendBadRequestResponse(res, "Invalid payment method. Only CARD payment is allowed.");
     }
 
     const selectedAddress = user.address?.find(
@@ -488,9 +461,7 @@ export const updateOrderStatus = async (req, res) => {
       order.timeline.orderDelivered = order.timeline.orderDelivered || now;
       order.actualDeliveryDate = order.actualDeliveryDate || now;
 
-      if (order.paymentInfo.method === "cod" && order.paymentInfo.status !== "completed") {
-        order.paymentInfo.status = "completed";
-      }
+
       if (order.paymentInfo.status !== "refunded") {
         order.paymentInfo.status = "completed";
       }

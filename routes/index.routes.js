@@ -163,15 +163,12 @@ indexRoutes.post("/order/:orderId/cancel", UserAuth, orderController.cancelOrder
 indexRoutes.post("/order/:orderId/return", UserAuth, orderController.returnOrder);
 indexRoutes.get("/order/admin/all-orders", adminAuth, orderController.getAllOrders);
 
-// Payment endpoints (Razorpay)
+// Payment endpoints (Stripe - Card Only)
 indexRoutes.post("/payment/:orderId/initiate", UserAuth, paymentController.initiatePayment);
-indexRoutes.post("/payment/:orderId/initiate-emi", UserAuth, paymentController.initiateEMIPayment);
 indexRoutes.post("/payment/:orderId/verify", UserAuth, paymentController.verifyPayment);
 indexRoutes.get("/payment/:orderId/status", UserAuth, paymentController.getPaymentStatus);
 indexRoutes.post("/payment/:orderId/refund", UserAuth, paymentController.processRefund);
-indexRoutes.post("/payment/webhook", paymentController.handleRazorpayWebhook);
-indexRoutes.post("/payment/:orderId/pay-installment", UserAuth, paymentController.payEMIInstallment);
-indexRoutes.post("/payment/:orderId/verify-installment", UserAuth, paymentController.verifyInstallmentPayment);
+indexRoutes.post("/payment/webhook", paymentController.handleStripeWebhook);
 
 
 //reviw.routes.js
