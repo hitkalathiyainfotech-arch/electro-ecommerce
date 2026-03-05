@@ -500,7 +500,7 @@ export const cancelOrder = async (req, res) => {
       return sendNotFoundResponse(res, "Order not found");
     }
 
-    if (!["pending", "confirmed"].includes(order.orderStatus.current)) {
+    if (!["pending", "confirmed", "processing"].includes(order.orderStatus.current)) {
       return sendBadRequestResponse(res, `Cannot cancel order with status: ${order.orderStatus.current}`);
     }
 
