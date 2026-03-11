@@ -543,8 +543,7 @@ export const searchProducts = async (req, res) => {
 
     if (q && q.trim()) {
       matchQuery.$or = [
-        { title: { $regex: q.trim(), $options: "i" } },
-        { description: { $regex: q.trim(), $options: "i" } }
+        { title: { $regex: q.trim(), $options: "i" } }
       ]
     }
 
