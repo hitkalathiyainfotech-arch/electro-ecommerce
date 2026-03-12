@@ -230,12 +230,17 @@ export const getFiltteredProducts = async (req, res) => {
       color,
       size,
       rating,
-      sort
+      sort,
+      discount
     } = req.query;
 
     const min = minPrice ? Number(minPrice) : null;
     const max = maxPrice ? Number(maxPrice) : null;
     const minRating = rating ? Number(rating) : null;
+    const minDiscount = discount ? Number(discount) : null;
+
+    console.log("Received Query:", req.query);
+    console.log("Parsed minDiscount:", minDiscount);
 
     const matchQuery = { isActive: true };
 
@@ -279,25 +284,42 @@ export const getFiltteredProducts = async (req, res) => {
 
     let filteredProducts = formattedProducts;
 
-    if (min !== null || max !== null || color || size) {
+    if (min !== null || max !== null || color || size || minDiscount !== null) {
       filteredProducts = filteredProducts
         .map(product => {
           const variants = product.variantId.filter(variant => {
             let ok = true;
 
-            const prices =
+            const pricingDetails =
               variant.color.sizes && variant.color.sizes.length > 0
-                ? variant.color.sizes.map(s =>
-                  s.discountedPrice !== null ? s.discountedPrice : s.price
-                )
+                ? variant.color.sizes.map(s => ({
+                  price: s.price,
+                  discountedPrice: s.discountedPrice !== null ? s.discountedPrice : s.price
+                }))
                 : [
-                  variant.color.discountedPrice !== null
-                    ? variant.color.discountedPrice
-                    : variant.color.price
+                  {
+                    price: variant.color.price,
+                    discountedPrice: variant.color.discountedPrice !== null
+                      ? variant.color.discountedPrice
+                      : variant.color.price
+                  }
                 ];
+
+            const prices = pricingDetails.map(p => p.discountedPrice);
 
             if (min !== null) ok = ok && prices.some(p => p >= min);
             if (max !== null) ok = ok && prices.some(p => p <= max);
+
+            if (minDiscount !== null) {
+              const hasDiscount = pricingDetails.some(p => {
+                if (p.price && p.discountedPrice < p.price) {
+                  const discountPercentage = ((p.price - p.discountedPrice) / p.price) * 100;
+                  return discountPercentage >= minDiscount;
+                }
+                return false;
+              });
+              ok = ok && hasDiscount;
+            }
 
             if (color) {
               ok =
