@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import 'dotenv/config';
 import userModel from "../models/user.model.js";
-import { sendErrorResponse, sendForbiddenResponse, sendNotFoundResponse, sendUnauthorizedResponse } from "../utils/Response.utils.js";
+import { sendErrorResponse, sendForbiddenResponse, sendNotFoundResponse, sendUnauthorizedResponse } from "../utils/response.utils.js";
 import sellerModel from "../models/seller.model.js";
 
 const JWT_SCERET = process.env.JWT_SCERET;
