@@ -16,7 +16,7 @@ import orderController from '../controllers/order.controller.js';
 import paymentController from '../controllers/payment.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, removeCouponController, updateCoupon } from '../controllers/coupon.controller.js';
 import { createHomeBanner, deleteBannerByName, getAllBanners, getHomeBanners, updateBannerByName } from '../controllers/banner.controller.js';
-import { bestSeller, getFiltteredProducts, grabNowDeals, newArrival, newProducts, trendingDeals } from '../controllers/home.controller.js';
+import { bestSeller, getFiltteredProducts, grabNowDeals, newArrival, newProducts, trendingDeals, getAppFilters } from '../controllers/home.controller.js';
 import { checkUserReview, createReview, deleteReview, getProductReviews, updateReview } from '../controllers/review.controller.js';
 import { createOfferBanner, deleteOfferBanner, getAllOfferBanners, updateOfferBanner } from '../controllers/offer.controller.js';
 
@@ -101,6 +101,7 @@ indexRoutes.get("/searchProduct", searchProducts)
 
 // filtter producrts
 indexRoutes.get("/filter", getFiltteredProducts)
+indexRoutes.get("/getAppFilters", getAppFilters)
 
 //productVarient
 indexRoutes.post("/createProductVariant", sellerAndAdminAuth, upload.array("images", 10), createProductVariant);

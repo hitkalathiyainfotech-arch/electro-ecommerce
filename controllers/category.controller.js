@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import categoryModel from "../models/category.model.js";
-import { checkRequired, sendBadRequestResponse, sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js"
+import { checkRequired, sendBadRequestResponse, sendErrorResponse, sendSuccessResponse, sendNotFoundResponse } from "../utils/response.utils.js"
 import { deleteFromS3, updateS3, uploadToS3 } from "../utils/s3Service.js";
 
 
@@ -153,10 +153,23 @@ export const deleteCategory = async (req, res) => {
       return sendBadRequestResponse(res, "Cannot delete category containing sub-categories. Delete children first.");
     }
 
+    const category = await categoryModel.findById(id);
+    if (!category) {
+      return sendNotFoundResponse(res, "Category not found");
+    }
 
-    const category = await categoryModel.findByIdAndDelete({ _id: id });
-    let key = String(category.image).split(".amazonaws.com/")[1];
-    await deleteFromS3(key)
+    if (category.image) {
+      try {
+        let key = String(category.image).split(".amazonaws.com/")[1];
+        if (key) {
+          await deleteFromS3(key);
+        }
+      } catch (err) {
+        console.log("Error deleting category image from S3:", err.message);
+      }
+    }
+
+    await categoryModel.findByIdAndDelete(id);
 
     return sendSuccessResponse(res, "Category deleted Successfully", category)
 

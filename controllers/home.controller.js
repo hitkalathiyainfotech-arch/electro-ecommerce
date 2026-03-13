@@ -231,6 +231,171 @@ export const grabNowDeals = async (req, res) => {
   }
 };
 
+export const getAppFilters = async (req, res) => {
+  try {
+    const { categoryId, q, brandId } = req.query;
+
+    const inputCategoryId = categoryId || req.query.categories || req.query.category;
+    let selectedCategoryIds = [];
+
+    if (inputCategoryId) {
+      if (Array.isArray(inputCategoryId)) {
+        selectedCategoryIds = inputCategoryId
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      } else if (typeof inputCategoryId === "string") {
+        selectedCategoryIds = inputCategoryId
+          .split(",")
+          .map(id => id.trim())
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      }
+    }
+
+    let matchQuery = { isActive: true };
+
+    if (q && q.trim()) {
+      matchQuery.$or = [
+        { title: { $regex: q.trim(), $options: "i" } },
+        { description: { $regex: q.trim(), $options: "i" } }
+      ];
+    }
+
+    if (selectedCategoryIds.length > 0) {
+      let allRelevantCategoryIds = [...selectedCategoryIds];
+      for (const catId of selectedCategoryIds) {
+        const childIds = await getAllChildCategoryIds(catId);
+        const objectIdChilds = childIds.map(id => new mongoose.Types.ObjectId(id));
+        allRelevantCategoryIds = [...allRelevantCategoryIds, ...objectIdChilds];
+      }
+      matchQuery.categories = { $in: allRelevantCategoryIds };
+    }
+
+    const inputBrandId = brandId || req.query.brands || req.query.brand;
+    let selectedBrandIds = [];
+    if (inputBrandId) {
+      if (Array.isArray(inputBrandId)) {
+        selectedBrandIds = inputBrandId
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      } else if (typeof inputBrandId === "string") {
+        selectedBrandIds = inputBrandId
+          .split(",")
+          .map(id => id.trim())
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      }
+    }
+
+    if (selectedBrandIds.length > 0) {
+      matchQuery.brand = { $in: selectedBrandIds };
+    }
+
+    const products = await productModel
+      .find(matchQuery)
+      .populate("brand", "brandName")
+      .populate("categories", "name parentCategory")
+      .populate("variantId")
+      .lean();
+
+    const categorySet = new Set();
+    const subCategorySet = new Set();
+    const brandSet = new Set();
+    const colorSet = new Set();
+    const sizeSet = new Set();
+    const discountSet = new Set();
+    const ratingSet = new Set();
+
+    let minTotal = Infinity;
+    let maxTotal = -Infinity;
+
+    if (selectedCategoryIds.length === 1) {
+      const subCats = await categoryModel.find({ parentCategory: selectedCategoryIds[0] });
+      subCats.forEach(sc => {
+        if (sc.name) subCategorySet.add(sc.name);
+      });
+    }
+
+    products.forEach((p) => {
+      if (p.brand?.brandName) brandSet.add(p.brand.brandName);
+      if (p.rating?.average >= 0) ratingSet.add(Math.floor(p.rating.average));
+
+      if (selectedCategoryIds.length !== 1) {
+        p.categories?.forEach((cat) => {
+          if (cat.name) subCategorySet.add(cat.name);
+        });
+      }
+
+      p.variantId?.forEach((v) => {
+        if (v.color?.colorName) colorSet.add(v.color.colorName);
+
+        if (v.color?.sizes && v.color.sizes.length > 0) {
+          v.color?.sizes?.forEach((s) => {
+            if (s.sizeValue) sizeSet.add(s.sizeValue);
+
+            const priceToUse = s.discountedPrice > 0 ? s.discountedPrice : s.price;
+            if (priceToUse > 0) {
+              minTotal = Math.min(minTotal, priceToUse);
+              maxTotal = Math.max(maxTotal, priceToUse);
+            }
+
+            if (s.price > 0 && s.discountedPrice > 0) {
+              const percent = Math.round(((s.price - s.discountedPrice) / s.price) * 100);
+              const range = Math.floor(percent / 10) * 10;
+              if (range > 0) discountSet.add(range);
+            }
+          });
+        } else if (v.color) {
+          const priceToUse = v.color.discountedPrice > 0 ? v.color.discountedPrice : v.color.price;
+          if (priceToUse > 0) {
+            minTotal = Math.min(minTotal, priceToUse);
+            maxTotal = Math.max(maxTotal, priceToUse);
+          }
+          if (v.color.price > 0 && v.color.discountedPrice > 0) {
+            const percent = Math.round(((v.color.price - v.color.discountedPrice) / v.color.price) * 100);
+            const range = Math.floor(percent / 10) * 10;
+            if (range > 0) discountSet.add(range);
+          }
+        }
+      });
+    });
+
+    let selectedCatName = null;
+    if (selectedCategoryIds.length === 1) {
+      const cat = await categoryModel.findById(selectedCategoryIds[0]);
+      if (cat) selectedCatName = cat.name;
+    }
+
+    return res.status(200).json({
+      success: true,
+      selected: {
+        category: selectedCatName,
+        subCategory: null,
+      },
+      filters: {
+        categories: [],
+        subCategories: [...subCategorySet].filter(Boolean).sort(),
+        brands: [...brandSet].filter(Boolean).sort(),
+        colors: [...colorSet].filter(Boolean).map((c) => c.charAt(0).toUpperCase() + c.slice(1)).sort(),
+        sizes: [...sizeSet].filter(Boolean).sort(),
+        ratings: [...ratingSet].sort((a, b) => a - b),
+        price: {
+          min: minTotal === Infinity ? 0 : Math.floor(minTotal),
+          max: maxTotal === -Infinity ? 0 : Math.ceil(maxTotal)
+        },
+        discount: [...discountSet].length
+          ? [...discountSet].sort((a, b) => a - b)
+          : [10, 20, 30, 40, 50, 60, 70]
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 export const getFiltteredProducts = async (req, res) => {
   try {
     const {
@@ -243,7 +408,10 @@ export const getFiltteredProducts = async (req, res) => {
       size,
       rating,
       sort,
-      discount
+      discount,
+      page,
+      limit,
+      ...dynamicQueryParams
     } = req.query;
 
     const min = minPrice ? Number(minPrice) : null;
@@ -389,6 +557,49 @@ export const getFiltteredProducts = async (req, res) => {
                 variant.color.sizes.some(s => s.sizeValue === size);
             }
 
+            const excludedParams = ["categories", "category", "brands", "brand"];
+            const dynamicKeys = Object.keys(dynamicQueryParams).filter(k => !excludedParams.includes(k));
+            if (dynamicKeys.length > 0) {
+              let matchesDynamic = true;
+              for (const dKey of dynamicKeys) {
+                const requestedValues = dynamicQueryParams[dKey].toString().split(",").map(v => v.trim().toLowerCase());
+                let hasValue = false;
+
+                if (variant.overview) {
+                  for (const item of variant.overview) {
+                    if (item.key && item.key.trim() === dKey) {
+                      if (item.value && requestedValues.includes(item.value.trim().toLowerCase())) {
+                        hasValue = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+
+                if (!hasValue && variant.specification) {
+                  for (const spec of variant.specification) {
+                    if (spec.details) {
+                      for (const detail of spec.details) {
+                        if (detail.key && detail.key.trim() === dKey) {
+                          if (detail.value && requestedValues.includes(detail.value.trim().toLowerCase())) {
+                            hasValue = true;
+                            break;
+                          }
+                        }
+                      }
+                    }
+                    if (hasValue) break;
+                  }
+                }
+
+                if (!hasValue) {
+                  matchesDynamic = false;
+                  break;
+                }
+              }
+              ok = ok && matchesDynamic;
+            }
+
             return ok;
           });
 
@@ -478,11 +689,27 @@ export const getFiltteredProducts = async (req, res) => {
       }
     }
 
-    return sendSuccessResponse(res, "Products fetched successfully", filteredProducts);
+    let pageObj = Number(req.query.page) || 1;
+    let limitObj = Number(req.query.limit) || 20;
+    const total = filteredProducts.length;
+
+    const skip = (pageObj - 1) * limitObj;
+    const paginatedProducts = filteredProducts.slice(skip, skip + limitObj);
+
+    return res.status(200).json({
+      success: true,
+      total,
+      page: pageObj,
+      limit: limitObj,
+      pages: Math.ceil(total / limitObj),
+      data: paginatedProducts
+    });
 
   } catch (error) {
-
-    return sendErrorResponse(res, 500, "Error while filtering products", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Error while filtering products"
+    });
   }
 };
 
