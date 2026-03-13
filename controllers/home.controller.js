@@ -5,6 +5,18 @@ import productVarientModel from "../models/productVarient.model.js";
 import { sendErrorResponse, sendSuccessResponse } from "../utils/response.utils.js";
 
 import reviewModel from "../models/review.model.js";
+import categoryModel from "../models/category.model.js";
+
+const getAllChildCategoryIds = async (categoryId) => {
+  const children = await categoryModel.find({ parentCategory: categoryId }).select("_id");
+  let allIds = children.map(c => c._id);
+
+  for (const child of children) {
+    const subChildren = await getAllChildCategoryIds(child._id);
+    allIds = [...allIds, ...subChildren];
+  }
+  return allIds;
+};
 
 export const newArrival = async (req, res) => {
   try {
@@ -251,20 +263,62 @@ export const getFiltteredProducts = async (req, res) => {
       ];
     }
 
+    const inputCategoryId = req.query.categoryId || req.query.categories || req.query.category;
+    let selectedCategoryIds = [];
+
+    if (inputCategoryId) {
+      if (Array.isArray(inputCategoryId)) {
+        selectedCategoryIds = inputCategoryId
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      } else if (typeof inputCategoryId === "string") {
+        selectedCategoryIds = inputCategoryId
+          .split(",")
+          .map(id => id.trim())
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      }
+    }
+
     let brandIds = [];
 
-    if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+    if (selectedCategoryIds.length > 0) {
+      let allRelevantCategoryIds = [...selectedCategoryIds];
+
+      for (const catId of selectedCategoryIds) {
+        const childIds = await getAllChildCategoryIds(catId);
+        const objectIdChilds = childIds.map(id => new mongoose.Types.ObjectId(id));
+        allRelevantCategoryIds = [...allRelevantCategoryIds, ...objectIdChilds];
+      }
+
       const brands = await brandModel.find(
-        { categories: new mongoose.Types.ObjectId(categoryId) },
+        { categories: { $in: allRelevantCategoryIds } },
         { _id: 1 }
       );
 
       brandIds = brands.map(b => b._id);
-      matchQuery.categories = new mongoose.Types.ObjectId(categoryId);
+      matchQuery.categories = { $in: allRelevantCategoryIds };
     }
 
-    if (brandId && mongoose.Types.ObjectId.isValid(brandId)) {
-      matchQuery.brand = new mongoose.Types.ObjectId(brandId);
+    const inputBrandId = req.query.brandId || req.query.brands || req.query.brand;
+    let selectedBrandIds = [];
+
+    if (inputBrandId) {
+      if (Array.isArray(inputBrandId)) {
+        selectedBrandIds = inputBrandId
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      } else if (typeof inputBrandId === "string") {
+        selectedBrandIds = inputBrandId
+          .split(",")
+          .map(id => id.trim())
+          .filter(id => mongoose.Types.ObjectId.isValid(id))
+          .map(id => new mongoose.Types.ObjectId(id));
+      }
+    }
+
+    if (selectedBrandIds.length > 0) {
+      matchQuery.brand = { $in: selectedBrandIds };
     } else if (brandIds.length > 0) {
       matchQuery.brand = { $in: brandIds };
     }
