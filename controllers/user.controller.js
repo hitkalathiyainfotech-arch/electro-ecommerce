@@ -215,13 +215,18 @@ export const userLogin = async (req, res) => {
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
 
+    const selectedAddressDetails = (user.selectedAddress && user.address) 
+      ? user.address.find(addr => addr._id.toString() === user.selectedAddress.toString())
+      : null;
+
     const safeUser = {
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
       phone: user.phone,
       avatar: user.avatar,
-      isSocialLogin: user.isSocialLogin
+      isSocialLogin: user.isSocialLogin,
+      address: selectedAddressDetails || null
     };
 
     return sendSuccessResponse(res, "User login successful", {
