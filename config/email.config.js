@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
     rejectUnauthorized: false
   },
   auth: {
-    user: process.env.EMAIL_USER || "hit.kalathiyainfotech@gmail.com",
+    user: process.env.EMAIL_USER || "darshan1.kalathiyainfotech@gmail.com",
     pass: process.env.EMAIL_PASS || "fxea ykui olbg oqoh",
   },
 });
