@@ -1,5 +1,5 @@
 import express from 'express';
-import { addNewAddress, createUser, deleteUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, searchAddress, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, userPasswordChangeController, userUpdateProfile, verifyOtp } from '../controllers/user.controller.js';
+import { addNewAddress, createUser, verifyOtpRegister, deleteUser, deleteUserAddress, forgotPassword, getAllCountry, getAllnewUser, getAllUserAddress, getUser, getUserAddressById, getUserProfile, resetPassword, searchAddress, selectCountry, selectUserAddress, socialLogin, updateUserAddress, userLogin, userPasswordChangeController, userUpdateProfile, verifyOtp } from '../controllers/user.controller.js';
 import { adminAuth, sellerAndAdminAuth, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { createAdminController, getAllSeller, getSeller, newSellerController, sellerForgetPasswordController, sellerLoginController, sellerPasswordChangeController, sellerPasswordResetController, sellerPickUpAddressSetController, sellerVerifyForgetOtpController, updateProfile } from '../controllers/seller.controller.js';
 import { sendResponse, sendSuccessResponse, sendBadRequestResponse, sendNotFoundResponse, sendErrorResponse } from '../utils/response.utils.js';
@@ -23,6 +23,7 @@ import { createOfferBanner, deleteOfferBanner, getAllOfferBanners, updateOfferBa
 const indexRoutes = express.Router();
 
 indexRoutes.post("/createUser", createUser);
+indexRoutes.post("/verifyOtpRegister", verifyOtpRegister);
 indexRoutes.post("/userLogin", userLogin);
 indexRoutes.post("/deleteUser", UserAuth, deleteUser);
 

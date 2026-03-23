@@ -1,4 +1,5 @@
 import userModel from '../models/user.model.js';
+import otpModel from '../models/otp.model.js';
 import { comparePassword, hashPassword } from '../utils/bcrypt.utils.js';
 import { checkRequired, sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from '../utils/response.utils.js';
 import jwt from 'jsonwebtoken';
@@ -56,41 +57,16 @@ export const createUser = async (req, res) => {
       });
     }
 
-    const hashedPassword = await hashPassword(password);
-    const avatar = `https://ui-avatars.com/api/?name=${encodeURI(fullName)}&background=random`;
+    const otp = 1234; // Static OTP for testing
 
-    const newUser = await userModel.create({
+    await otpModel.deleteMany({ email });
+    await otpModel.create({
       fullName,
       phone,
       email,
-      password: hashedPassword,
-      avatar,
-      isSocialLogin: false
+      password,
+      otp
     });
-
-    const payload = {
-      _id: newUser._id,
-      fullName: newUser.fullName,
-      email: newUser.email
-    };
-
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
-
-    const safeUser = {
-      _id: newUser._id,
-      fullName: newUser.fullName,
-      email: newUser.email,
-      phone: newUser.phone,
-      avatar: newUser.avatar,
-      isSocialLogin: newUser.isSocialLogin
-    };
-
-    const otp = 1234; // Static OTP for testing
-    const expiry = Date.now() + 5 * 60 * 1000;
-
-    newUser.otp = otp;
-    newUser.otpExpiry = expiry;
-    await newUser.save();
 
     try {
       await transporter.sendMail({
@@ -170,12 +146,69 @@ export const createUser = async (req, res) => {
       console.log("Registration Mail Error (Ignored):", mailError.message);
     }
 
-    return sendSuccessResponse(res, "New User Register Successful. Use OTP 1234 to verify.", {
-      user: safeUser,
-      token
+    return sendSuccessResponse(res, "OTP sent successfully. Please verify OTP to complete registration. Use OTP 1234.", {
+      email
     });
   } catch (error) {
     return sendErrorResponse(res, 500, "Error while createUser", error);
+  }
+};
+
+export const verifyOtpRegister = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      return sendBadRequestResponse(res, "Email and OTP are required", 400);
+    }
+
+    const otpRecord = await otpModel.findOne({ email });
+    if (!otpRecord) {
+      return sendBadRequestResponse(res, "OTP expired or not requested", 400);
+    }
+
+    if (otpRecord.otp !== Number(otp)) {
+      return sendBadRequestResponse(res, "Invalid OTP", 400);
+    }
+
+    const hashedPassword = await hashPassword(otpRecord.password);
+    const avatar = `https://ui-avatars.com/api/?name=${encodeURI(otpRecord.fullName)}&background=random`;
+
+    const newUser = await userModel.create({
+      fullName: otpRecord.fullName,
+      phone: otpRecord.phone,
+      email: otpRecord.email,
+      password: hashedPassword,
+      avatar,
+      isSocialLogin: false
+    });
+
+    await otpModel.deleteMany({ email });
+
+    const payload = {
+      _id: newUser._id,
+      fullName: newUser.fullName,
+      email: newUser.email
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
+
+    const safeUser = {
+      _id: newUser._id,
+      fullName: newUser.fullName,
+      email: newUser.email,
+      phone: newUser.phone,
+      avatar: newUser.avatar,
+      isSocialLogin: newUser.isSocialLogin
+    };
+
+    return sendSuccessResponse(res, "Registration successful", {
+      user: safeUser,
+      token
+    });
+
+  } catch (error) {
+    return sendErrorResponse(res, 500, "Error while verifyOtpRegister", error);
   }
 };
 
