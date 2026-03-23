@@ -20,8 +20,14 @@ const getAllChildCategoryIds = async (categoryId) => {
 
 export const newArrival = async (req, res) => {
   try {
+    const { q } = req.query;
+    const matchQuery = { isActive: true };
+    if (q && q.trim()) {
+      matchQuery.title = { $regex: q.trim(), $options: "i" };
+    }
+
     const products = await productModel
-      .find({ isActive: true })
+      .find(matchQuery)
       .sort({ createdAt: -1 })
       .limit(15)
       .populate({
@@ -46,8 +52,14 @@ export const newArrival = async (req, res) => {
 
 export const bestSeller = async (req, res) => {
   try {
+    const { q } = req.query;
+    const matchQuery = {};
+    if (q && q.trim()) {
+      matchQuery.title = { $regex: q.trim(), $options: "i" };
+    }
+
     const products = await productModel
-      .find({})
+      .find(matchQuery)
       .sort({ sold: -1 })
       .limit(15)
       .populate({
@@ -70,13 +82,19 @@ export const bestSeller = async (req, res) => {
 
 export const newProducts = async (req, res) => {
   try {
+    const { q } = req.query;
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+    const matchQuery = {
+      isActive: true,
+      createdAt: { $lt: thirtyDaysAgo }
+    };
+    if (q && q.trim()) {
+      matchQuery.title = { $regex: q.trim(), $options: "i" };
+    }
+
     const products = await productModel
-      .find({
-        isActive: true,
-        createdAt: { $lt: thirtyDaysAgo }
-      })
+      .find(matchQuery)
       .sort({ view: -1, sold: -1 })
       .limit(6)
       .populate({
@@ -102,30 +120,37 @@ export const trendingDeals = async (req, res) => {
     const limit = Number(req.query.limit) || 20;
     const page = Number(req.query.page) || 1;
     const skip = (page - 1) * limit;
+    const { q } = req.query;
 
-    const products = await productModel
-      .aggregate([
-        {
-          $addFields: {
-            trendingScore: {
-              $add: [
-                { $multiply: ["$sold", 2] },
-                { $multiply: ["$view", 1] },
-                {
-                  $cond: [
-                    { $gte: ["$createdAt", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)] },
-                    50,
-                    0
-                  ]
-                }
-              ]
-            }
+    const pipeline = [];
+    if (q && q.trim()) {
+      pipeline.push({ $match: { title: { $regex: q.trim(), $options: "i" } } });
+    }
+
+    pipeline.push(
+      {
+        $addFields: {
+          trendingScore: {
+            $add: [
+              { $multiply: ["$sold", 2] },
+              { $multiply: ["$view", 1] },
+              {
+                $cond: [
+                  { $gte: ["$createdAt", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)] },
+                  50,
+                  0
+                ]
+              }
+            ]
           }
-        },
-        { $sort: { trendingScore: -1 } },
-        { $skip: skip },
-        { $limit: limit }
-      ]);
+        }
+      },
+      { $sort: { trendingScore: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    );
+
+    const products = await productModel.aggregate(pipeline);
 
     const ids = products.map(x => x._id);
 
@@ -217,9 +242,16 @@ export const grabNowDeals = async (req, res) => {
 
     const uniqueDeals = [];
     const seenProductIds = new Set();
+    const { q } = req.query;
 
     for (const deal of deals) {
       if (!seenProductIds.has(deal._id.toString())) {
+        if (q && q.trim()) {
+          const searchQuery = q.trim().toLowerCase();
+          if (!deal.title || !deal.title.toLowerCase().includes(searchQuery)) {
+            continue;
+          }
+        }
         seenProductIds.add(deal._id.toString());
         uniqueDeals.push(deal);
       }

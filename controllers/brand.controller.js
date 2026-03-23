@@ -214,6 +214,15 @@ export const searchBrand = async (req, res) => {
     const result = await brandModel.find({
       brandName: { $regex: searchQuery, $options: "i" }
     })
+      .populate({
+        path: "categories",
+        select: "-updatedAt -__v",
+        populate: {
+          path: "sellerId",
+          select: "firstName email avatar role"
+        }
+      })
+      .populate("sellerId", "firstName mobileNo email avatar role")
       .sort({ createdAt: -1 });
 
     return sendSuccessResponse(res, "Search result fetched successfully", {

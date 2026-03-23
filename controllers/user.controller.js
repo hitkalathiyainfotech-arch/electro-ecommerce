@@ -85,7 +85,7 @@ export const createUser = async (req, res) => {
       isSocialLogin: newUser.isSocialLogin
     };
 
-    const otp = 123456; // Static OTP for testing
+    const otp = 1234; // Static OTP for testing
     const expiry = Date.now() + 5 * 60 * 1000;
 
     newUser.otp = otp;
@@ -170,7 +170,7 @@ export const createUser = async (req, res) => {
       console.log("Registration Mail Error (Ignored):", mailError.message);
     }
 
-    return sendSuccessResponse(res, "New User Register Successful. Use OTP 123456 to verify.", {
+    return sendSuccessResponse(res, "New User Register Successful. Use OTP 1234 to verify.", {
       user: safeUser,
       token
     });
