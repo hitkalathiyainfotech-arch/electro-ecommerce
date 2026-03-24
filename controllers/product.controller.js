@@ -542,9 +542,23 @@ export const searchProducts = async (req, res) => {
     }
 
     if (q && q.trim()) {
+      const searchRegex = { $regex: q.trim(), $options: "i" };
+
+      const matchedVariants = await productVarientModel.find({
+        $or: [
+          { variantTitle: searchRegex },
+          { variantDescription: searchRegex },
+          { sku: searchRegex },
+          { "color.colorName": searchRegex }
+        ]
+      }).select("productId").lean();
+
+      const variantProductIds = matchedVariants.map(v => v.productId);
+
       matchQuery.$or = [
-        { title: { $regex: q.trim(), $options: "i" } }
-      ]
+        { title: searchRegex },
+        { _id: { $in: variantProductIds } }
+      ];
     }
 
     if (categoryIds.length > 0) {
