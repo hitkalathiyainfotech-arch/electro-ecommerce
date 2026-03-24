@@ -58,8 +58,8 @@ export const createOrder = async (req, res) => {
 
     const subtotal = cart.totalPrice;
     const itemDiscount = cart.totalSavings;
-    const comboDiscount = cart.comboDiscount || 0;
-    const couponDiscount = cart.couponDiscount || 0;
+    const comboDiscount = cart.comboDiscount || (cart.appliedCombos?.reduce((acc, c) => acc + (c.discountApplied || Math.round((cart.totalDiscountedPrice * (c.comboId?.discountPercentage || 0)) / 100)), 0)) || 0;
+    const couponDiscount = cart.appliedCoupon?.discountApplied || cart.couponDiscount || 0;
     const subtotalAfterDiscounts =
       cart.totalDiscountedPrice - comboDiscount - couponDiscount;
     const gst = cart.gst;
@@ -218,6 +218,15 @@ export const getUserOrders = async (req, res) => {
     const formattedOrders = orders.map(order => {
       const obj = order.toObject();
       obj.estimatedDeliveryDate = formatDate(order.estimatedDeliveryDate);
+      
+      // Patch old orders that were saved before the fix
+      if (obj.priceSummary && obj.priceSummary.couponDiscount === 0 && obj.appliedOffers?.coupon?.discountApplied) {
+        obj.priceSummary.couponDiscount = obj.appliedOffers.coupon.discountApplied;
+      }
+      if (obj.priceSummary && obj.priceSummary.comboDiscount === 0 && obj.appliedOffers?.combos?.length > 0) {
+        obj.priceSummary.comboDiscount = obj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
+      }
+
       return obj;
     });
 
@@ -267,6 +276,14 @@ export const getOrderById = async (req, res) => {
     const orderObj = order.toObject();
     orderObj.estimatedDeliveryDate = formatDate(order.estimatedDeliveryDate);
 
+    // Patch old orders that were saved before the fix
+    if (orderObj.priceSummary && orderObj.priceSummary.couponDiscount === 0 && orderObj.appliedOffers?.coupon?.discountApplied) {
+      orderObj.priceSummary.couponDiscount = orderObj.appliedOffers.coupon.discountApplied;
+    }
+    if (orderObj.priceSummary && orderObj.priceSummary.comboDiscount === 0 && orderObj.appliedOffers?.combos?.length > 0) {
+      orderObj.priceSummary.comboDiscount = orderObj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
+    }
+
     return sendSuccessResponse(res, "Order fetched", orderObj);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
@@ -295,7 +312,17 @@ export const getOrderByMongoId = async (req, res) => {
       return sendNotFoundResponse(res, "Order not found");
     }
 
-    return sendSuccessResponse(res, "Order fetched", order);
+    const orderObj = order.toObject();
+    
+    // Patch old orders that were saved before the fix
+    if (orderObj.priceSummary && orderObj.priceSummary.couponDiscount === 0 && orderObj.appliedOffers?.coupon?.discountApplied) {
+      orderObj.priceSummary.couponDiscount = orderObj.appliedOffers.coupon.discountApplied;
+    }
+    if (orderObj.priceSummary && orderObj.priceSummary.comboDiscount === 0 && orderObj.appliedOffers?.combos?.length > 0) {
+      orderObj.priceSummary.comboDiscount = orderObj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
+    }
+
+    return sendSuccessResponse(res, "Order fetched", orderObj);
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
   }
@@ -592,11 +619,22 @@ export const getAllOrders = async (req, res) => {
 
     const total = await Order.countDocuments(query);
 
+    const formattedOrders = orders.map(order => {
+      const obj = order.toObject();
+      if (obj.priceSummary && obj.priceSummary.couponDiscount === 0 && obj.appliedOffers?.coupon?.discountApplied) {
+        obj.priceSummary.couponDiscount = obj.appliedOffers.coupon.discountApplied;
+      }
+      if (obj.priceSummary && obj.priceSummary.comboDiscount === 0 && obj.appliedOffers?.combos?.length > 0) {
+        obj.priceSummary.comboDiscount = obj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
+      }
+      return obj;
+    });
+
     return sendSuccessResponse(res, "All orders fetched", {
       total,
       page: parseInt(page),
       limit: parseInt(limit),
-      orders
+      orders: formattedOrders
     });
   } catch (error) {
     return sendErrorResponse(res, 500, error.message);
