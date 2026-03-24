@@ -584,7 +584,7 @@ const recalculateCart = (cart) => {
   }
   cart.couponDiscount = couponDiscount;
 
-  const afterAllDiscounts = totalDiscounted - comboDiscount - couponDiscount;
+  const afterAllDiscounts = totalDiscounted - comboDiscount;
   const gst = Math.round(afterAllDiscounts * 0.18);
   cart.gst = gst;
 
@@ -593,7 +593,7 @@ const recalculateCart = (cart) => {
   const subtotal = afterAllDiscounts + gst + delivery;
   cart.subtotal = subtotal;
 
-  cart.finalTotal = subtotal;
+  cart.finalTotal = subtotal - couponDiscount;
 };
 
 
@@ -642,13 +642,13 @@ export const cartBillingPreview = async (req, res) => {
       couponDiscount = cart.appliedCoupon.discountApplied || 0;
     }
 
-    const totalBeforeTax = Math.max(0, subtotal - comboDiscount - couponDiscount);
+    const totalBeforeTax = Math.max(0, subtotal - comboDiscount);
 
     const gstAmount = Math.round(totalBeforeTax * 0.18);
 
     const shippingCharges = cart.deliveryCharge || 0;
 
-    const finalTotal = totalBeforeTax + gstAmount + shippingCharges;
+    const finalTotal = totalBeforeTax + gstAmount + shippingCharges - couponDiscount;
 
     const itemsBySeller = {};
     cart.items.forEach(item => {
@@ -801,6 +801,7 @@ export const applyCouponToCart = async (req, res) => {
       { new: true }
     );
 
+    recalculateCart(cart);
     await cart.save();
 
     const populatedCart = await Cart.findById(cart._id)
@@ -833,6 +834,7 @@ export const removeCouponFromCart = async (req, res) => {
     }
 
     cart.appliedCoupon = null;
+    recalculateCart(cart);
     await cart.save();
 
     const populatedCart = await Cart.findById(cart._id)

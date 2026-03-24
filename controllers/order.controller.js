@@ -14,6 +14,29 @@ const generateOrderId = () => {
   return `ORD-${timestamp}-${random}`;
 };
 
+const patchHistoricalOrderDiscount = (obj) => {
+  if (!obj.priceSummary) return;
+  
+  let patched = false;
+  if (obj.priceSummary.couponDiscount === 0 && obj.appliedOffers?.coupon?.discountApplied) {
+    obj.priceSummary.couponDiscount = obj.appliedOffers.coupon.discountApplied;
+    patched = true;
+  }
+  if (obj.priceSummary.comboDiscount === 0 && obj.appliedOffers?.combos?.length > 0) {
+    const calculatedCombo = obj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
+    if (calculatedCombo > 0) {
+      obj.priceSummary.comboDiscount = calculatedCombo;
+      patched = true;
+    }
+  }
+  
+  if (patched) {
+    obj.priceSummary.subtotalAfterDiscounts = Math.max(0, obj.priceSummary.subtotal - obj.priceSummary.itemDiscount - obj.priceSummary.comboDiscount);
+    obj.priceSummary.gst = Math.round(obj.priceSummary.subtotalAfterDiscounts * 0.18);
+    obj.priceSummary.finalTotal = obj.priceSummary.subtotalAfterDiscounts + obj.priceSummary.gst + (obj.priceSummary.deliveryCharge || 0) - obj.priceSummary.couponDiscount;
+  }
+};
+
 /**
  * Create Order from Cart
  * POST /order/create
@@ -60,8 +83,7 @@ export const createOrder = async (req, res) => {
     const itemDiscount = cart.totalSavings;
     const comboDiscount = cart.comboDiscount || (cart.appliedCombos?.reduce((acc, c) => acc + (c.discountApplied || Math.round((cart.totalDiscountedPrice * (c.comboId?.discountPercentage || 0)) / 100)), 0)) || 0;
     const couponDiscount = cart.appliedCoupon?.discountApplied || cart.couponDiscount || 0;
-    const subtotalAfterDiscounts =
-      cart.totalDiscountedPrice - comboDiscount - couponDiscount;
+    const subtotalAfterDiscounts = cart.totalDiscountedPrice - comboDiscount;
     const gst = cart.gst;
     const deliveryCharge = cart.deliveryCharge || 0;
     const finalTotal = cart.finalTotal;
@@ -219,13 +241,7 @@ export const getUserOrders = async (req, res) => {
       const obj = order.toObject();
       obj.estimatedDeliveryDate = formatDate(order.estimatedDeliveryDate);
       
-      // Patch old orders that were saved before the fix
-      if (obj.priceSummary && obj.priceSummary.couponDiscount === 0 && obj.appliedOffers?.coupon?.discountApplied) {
-        obj.priceSummary.couponDiscount = obj.appliedOffers.coupon.discountApplied;
-      }
-      if (obj.priceSummary && obj.priceSummary.comboDiscount === 0 && obj.appliedOffers?.combos?.length > 0) {
-        obj.priceSummary.comboDiscount = obj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
-      }
+      patchHistoricalOrderDiscount(obj);
 
       return obj;
     });
@@ -276,13 +292,7 @@ export const getOrderById = async (req, res) => {
     const orderObj = order.toObject();
     orderObj.estimatedDeliveryDate = formatDate(order.estimatedDeliveryDate);
 
-    // Patch old orders that were saved before the fix
-    if (orderObj.priceSummary && orderObj.priceSummary.couponDiscount === 0 && orderObj.appliedOffers?.coupon?.discountApplied) {
-      orderObj.priceSummary.couponDiscount = orderObj.appliedOffers.coupon.discountApplied;
-    }
-    if (orderObj.priceSummary && orderObj.priceSummary.comboDiscount === 0 && orderObj.appliedOffers?.combos?.length > 0) {
-      orderObj.priceSummary.comboDiscount = orderObj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
-    }
+    patchHistoricalOrderDiscount(orderObj);
 
     return sendSuccessResponse(res, "Order fetched", orderObj);
   } catch (error) {
@@ -314,13 +324,7 @@ export const getOrderByMongoId = async (req, res) => {
 
     const orderObj = order.toObject();
     
-    // Patch old orders that were saved before the fix
-    if (orderObj.priceSummary && orderObj.priceSummary.couponDiscount === 0 && orderObj.appliedOffers?.coupon?.discountApplied) {
-      orderObj.priceSummary.couponDiscount = orderObj.appliedOffers.coupon.discountApplied;
-    }
-    if (orderObj.priceSummary && orderObj.priceSummary.comboDiscount === 0 && orderObj.appliedOffers?.combos?.length > 0) {
-      orderObj.priceSummary.comboDiscount = orderObj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
-    }
+    patchHistoricalOrderDiscount(orderObj);
 
     return sendSuccessResponse(res, "Order fetched", orderObj);
   } catch (error) {
@@ -621,12 +625,7 @@ export const getAllOrders = async (req, res) => {
 
     const formattedOrders = orders.map(order => {
       const obj = order.toObject();
-      if (obj.priceSummary && obj.priceSummary.couponDiscount === 0 && obj.appliedOffers?.coupon?.discountApplied) {
-        obj.priceSummary.couponDiscount = obj.appliedOffers.coupon.discountApplied;
-      }
-      if (obj.priceSummary && obj.priceSummary.comboDiscount === 0 && obj.appliedOffers?.combos?.length > 0) {
-        obj.priceSummary.comboDiscount = obj.appliedOffers.combos.reduce((sum, c) => sum + (c.discountApplied || 0), 0);
-      }
+      patchHistoricalOrderDiscount(obj);
       return obj;
     });
 
